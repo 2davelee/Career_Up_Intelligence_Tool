@@ -34,7 +34,7 @@ def save_log_to_sheets(items, result):
     try:
         # 1. 시트 읽기 (워크시트 이름을 명시하는 것이 가장 확실합니다)
         # 만약 시트 탭 이름이 'Sheet1'이라면 그걸 적어주세요.
-        df = conn.read(worksheet="roulette_logs") 
+        df = conn.read(worksheet="roulette_logs", ttl=0) 
         
         # 2. 새 로그 데이터프레임 생성
         # 리스트 형태인 items를 문자열로 변환하여 저장합니다.
