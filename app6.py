@@ -22,11 +22,25 @@ def create_roulette(items):
     img = Image.new("RGBA", size, (255, 255, 255, 0))
     draw = ImageDraw.Draw(img)
     
-    try:
-        # Windows: r"C:\Windows\Fonts\malgun.ttf" / Mac: "/System/Library/Fonts/Supplemental/AppleGothic.ttf"
-        font = ImageFont.truetype(r"C:\Windows\Fonts\malgun.ttf", 28)
-    except:
-        font = None
+    # 서버(Linux)와 로컬(Windows) 경로를 모두 대응하도록 수정
+    font_paths = [
+        "/usr/share/fonts/truetype/nanum/NanumGothic.ttf",  # Streamlit 서버(Linux) 경로
+        "C:/Windows/Fonts/malgun.ttf",                     # 윈도우 로컬 경로
+        "/System/Library/Fonts/Supplemental/AppleGothic.ttf" # 맥 로컬 경로
+    ]
+    
+    font = None
+    for path in font_paths:
+        if os.path.exists(path):
+            try:
+                font = ImageFont.truetype(path, 28)
+                break
+            except:
+                continue
+    
+    # 만약 위 폰트들이 다 없다면 기본 폰트 사용
+    if font is None:
+        font = ImageFont.load_default()
 
     colors = ['#FF9999', '#66B2FF', '#99FF99', '#FFCC99', '#C2C2F0']
     n = len(items)
