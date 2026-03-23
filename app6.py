@@ -1,11 +1,17 @@
 import streamlit as st
+import pandas as pd
+import datetime
+import uuid
 import numpy as np
-from PIL import Image, ImageDraw, ImageFont
 import time
 import base64
 from io import BytesIO
 import random
 import os
+from streamlit_gsheets import GSheetsConnection
+from PIL import Image, ImageDraw, ImageFont
+
+
 
 # 1. 페이지 및 세션 상태 설정
 st.set_page_config(page_title="진짜 돌아가는 룰렛", layout="centered")
@@ -16,6 +22,34 @@ if 'target_angle' not in st.session_state:
     st.session_state.target_angle = 0
 if 'is_spinning' not in st.session_state:
     st.session_state.is_spinning = False
+
+# 1-1. 세션 식별자 (유지)
+if 'user_id' not in st.session_state:
+    st.session_state.user_id = str(uuid.uuid4())[:8]
+
+# 1-2. 구글 시트 연결 (Secrets 설정을 자동으로 읽어옴)
+conn = st.connection("gsheets", type=GSheetsConnection)
+
+def save_log_to_sheets(items, result):
+    try:
+        # Secrets에 등록된 스프레드시트를 읽어옴
+        df = conn.read() 
+        
+        # 새 로그 생성
+        new_data = pd.DataFrame([{
+            "timestamp": datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+            "session_id": st.session_state.user_id,
+            "items": ", ".join(items),
+            "result": result
+        }])
+        
+        # 데이터 합치기 및 업데이트 (시트의 첫 번째 워크시트에 반영)
+        updated_df = pd.concat([df, new_data], ignore_index=True)
+        conn.update(data=updated_df)
+    except Exception as e:
+        # 사용자에게는 조용히, 로그에는 남기기
+        print(f"Logging Error: {e}")
+
 
 # 2. 룰렛 이미지 생성 함수 (12시 방향 기준)
 def create_roulette(items):
@@ -157,7 +191,9 @@ else:
         angle_per_item = 360 / len(menus)
         # 화살표(상단) 위치에 맞게 각도 계산 (10바퀴 기본 회전)
         st.session_state.target_angle = 3600 - (win_idx * angle_per_item) - (angle_per_item / 2)
-        
+
+        # 당첨자(st.session_state.winner)가 결정되었으니 바로 시트로 보냅니다.
+        save_log_to_sheets(menus, st.session_state.winner)
         # 2. 회전 상태 활성화 후 화면 갱신
         st.session_state.is_spinning = True
         st.rerun()
