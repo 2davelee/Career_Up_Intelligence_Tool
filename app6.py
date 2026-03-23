@@ -5,6 +5,7 @@ import time
 import base64
 from io import BytesIO
 import random
+import os
 
 # 1. 페이지 및 세션 상태 설정
 st.set_page_config(page_title="진짜 돌아가는 룰렛", layout="centered")
