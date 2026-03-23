@@ -8,10 +8,10 @@ import base64
 from io import BytesIO
 import random
 import os
-import requests
 from streamlit_gsheets import GSheetsConnection
 from PIL import Image, ImageDraw, ImageFont
 import streamlit.components.v1 as components
+from streamlit_js_eval import streamlit_js_eval
 
 
 
@@ -26,31 +26,22 @@ if 'is_spinning' not in st.session_state:
     st.session_state.is_spinning = False
 
 # 1-1. 세션 식별자 (유지)
-if 'user_id' not in st.session_state:
-    st.session_state.user_id = str(uuid.uuid4())[:8]
+if 'user_real_ip' not in st.session_state:
+    st.session_state.user_real_ip = "Unknown"
 
 # 1-2. 구글 시트 연결 (Secrets 설정을 자동으로 읽어옴)
 conn = st.connection("gsheets", type=GSheetsConnection)
 
-def get_remote_ip():
-    # 이 스크립트는 사용자 브라우저에서 실행되어 IP를 찾고 다시 스트림릿으로 보냅니다.
-    js_code = """
-    <script>
-    fetch('https://api.ipify.org?format=json')
-      .then(response => response.json())
-      .then(data => {
-        const ip = data.ip;
-        window.parent.postMessage({
-          type: 'streamlit:setComponentValue',
-          value: ip
-        }, '*');
-      });
-    </script>
-    """
-    # 보이지 않는 작은 컴포넌트를 생성하여 실행
-    return components.html(js_code, height=0)
+# 2. 자바스크립트
+# --- 앱 상단 ---
+# 자바스크립트를 실행해서 IP를 가져오고, 그 결과를 바로 변수에 담습니다.
+# 이 함수는 내부적으로 알아서 세션 관리를 해줍니다.
+real_ip = streamlit_js_eval(
+    js_expressions='fetch("https://api.ipify.org?format=json").then(response => response.json()).then(data => data.ip)',
+    key='ip_address'
+)
 
-def save_log_to_sheets(items, result, real_ip):
+def save_log_to_sheets(items, result, current_ip):
     try:
         # 1. 시트 읽기 (워크시트 이름을 명시하는 것이 가장 확실합니다)
         # 만약 시트 탭 이름이 'Sheet1'이라면 그걸 적어주세요.
@@ -61,7 +52,7 @@ def save_log_to_sheets(items, result, real_ip):
         all_headers = str(dict(st.context.headers))
         user_agent = st.context.headers.get("User-Agent", "Unknown")
         accept_language = st.context.headers.get("Accept-Language", "Unknown")
-        
+ 
         # 2. 새 로그 데이터프레임 생성
         # 리스트 형태인 items를 문자열로 변환하여 저장합니다.
         new_row = pd.DataFrame([{
@@ -69,7 +60,7 @@ def save_log_to_sheets(items, result, real_ip):
             "session_id": str(st.session_state.get('user_id', 'unknown')),
             "items": ", ".join(items),
             "result": str(result),
-            "ip_address": real_ip,
+            "ip_address": str(current_ip), # 강제로 문자열 변환!
             "device_info": user_agent,      # 접속 기기 및 브라우저 정보
             "language": accept_language,    # 설정 언어
             "debug_headers": all_headers
@@ -168,9 +159,6 @@ st.markdown(f"""
 
 placeholder = st.empty()
 
-# 앱 상단에 컴포넌트 호출 (사용자 IP를 가져오기 시작)
-result_ip = get_remote_ip()
-
 # 5. 로직 실행
 if st.session_state.winner and not st.session_state.is_spinning:
     # --- [결과 화면] ---
@@ -234,10 +222,11 @@ else:
         # 화살표(상단) 위치에 맞게 각도 계산 (10바퀴 기본 회전)
         st.session_state.target_angle = 3600 - (win_idx * angle_per_item) - (angle_per_item / 2)
 
-        current_ip = st.session_state.get('user_real_ip', "Checking...")
+        # 만약 IP를 가져오는 중이라면 'Checking'으로 표시
+        user_ip = real_ip if real_ip else "Checking..."
 
         # 당첨자(st.session_state.winner)가 결정되었으니 바로 시트로 보냅니다.
-        save_log_to_sheets(menus, st.session_state.winner, current_ip)
+        save_log_to_sheets(menus, st.session_state.winner, user_ip)
         # 2. 회전 상태 활성화 후 화면 갱신
         st.session_state.is_spinning = True
         st.rerun()
