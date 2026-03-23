@@ -8,6 +8,7 @@ import base64
 from io import BytesIO
 import random
 import os
+import requests
 from streamlit_gsheets import GSheetsConnection
 from PIL import Image, ImageDraw, ImageFont
 
@@ -30,24 +31,25 @@ if 'user_id' not in st.session_state:
 # 1-2. 구글 시트 연결 (Secrets 설정을 자동으로 읽어옴)
 conn = st.connection("gsheets", type=GSheetsConnection)
 
+def get_external_ip():
+    try:
+        # 이 서비스는 접속자의 공인 IP를 텍스트로 바로 반환해줍니다.
+        response = requests.get('https://api.ipify.org', timeout=5)
+        return response.text
+    except:
+        return "Unknown"
+
 def save_log_to_sheets(items, result):
     try:
         # 1. 시트 읽기 (워크시트 이름을 명시하는 것이 가장 확실합니다)
         # 만약 시트 탭 이름이 'Sheet1'이라면 그걸 적어주세요.
         df = conn.read(worksheet="roulette_logs", ttl=0) 
 
-        ip_candidates = [
-            st.context.headers.get("X-Forwarded-For"),
-            st.context.headers.get("X-Real-IP"),
-            st.context.headers.get("Forwarded"),
-            st.context.headers.get("Remote-Addr")
-        ]
-        
+
         # 모든 헤더를 문자열로 변환 (분석용)
         all_headers = str(dict(st.context.headers))
         # 유효한 IP 하나 선택 (없으면 Unknown)
-        detected_ip = next((ip for ip in ip_candidates if ip), "Unknown")
-
+        real_ip = get_external_ip()
         user_agent = st.context.headers.get("User-Agent", "Unknown")
         accept_language = st.context.headers.get("Accept-Language", "Unknown")
         
@@ -58,7 +60,7 @@ def save_log_to_sheets(items, result):
             "session_id": str(st.session_state.get('user_id', 'unknown')),
             "items": ", ".join(items),
             "result": str(result),
-            "ip_address": detected_ip,
+            "ip_address": real_ip,
             "device_info": user_agent,      # 접속 기기 및 브라우저 정보
             "language": accept_language,    # 설정 언어
             "debug_headers": all_headers
