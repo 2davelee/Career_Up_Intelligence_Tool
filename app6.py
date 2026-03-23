@@ -45,7 +45,7 @@ def save_log_to_sheets(items, result):
         
         # 데이터 합치기 및 업데이트 (시트의 첫 번째 워크시트에 반영)
         updated_df = pd.concat([df, new_data], ignore_index=True)
-        conn.update(data=updated_df)
+        conn.update(worksheet="roulette_logs", data=updated_df)
     except Exception as e:
         # 사용자에게는 조용히, 로그에는 남기기
         print(f"Logging Error: {e}")
