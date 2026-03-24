@@ -137,7 +137,7 @@ def img_to_base64(img):
     return base64.b64encode(buffered.getvalue()).decode()
 
 # 3. UI 구성
-st.title("🍴 우리 뭐 먹지? 진짜 도는 룰렛 돌리기")
+st.title("🍴 우리 뭐 먹지? 진짜 도는 룰렛돌리기")
 
 cols = st.columns(5)
 menus = []
