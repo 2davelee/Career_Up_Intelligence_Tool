@@ -48,7 +48,6 @@ real_ip = streamlit_js_eval(
 def save_log_to_sheets(items, result, current_ip):
     try:
         # 1. 시트 읽기 (워크시트 이름을 명시하는 것이 가장 확실합니다)
-        # 만약 시트 탭 이름이 'Sheet1'이라면 그걸 적어주세요.
         df = conn.read(worksheet="roulette_logs", ttl=0) 
 
 
@@ -138,7 +137,7 @@ def img_to_base64(img):
     return base64.b64encode(buffered.getvalue()).decode()
 
 # 3. UI 구성
-st.title("🍴 이번엔 진짜 돈다! 점심 룰렛")
+st.title("🍴 우리 뭐 먹을까? 메뉴 룰렛 돌리자~")
 
 cols = st.columns(5)
 menus = []
