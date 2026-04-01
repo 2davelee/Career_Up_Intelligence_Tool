@@ -18,7 +18,6 @@ import streamlit.components.v1 as components
 from streamlit_js_eval import streamlit_js_eval
 import requests
 
-
 # 1. 페이지 및 세션 상태 설정
 st.set_page_config(page_title="진짜 도는 런치룰렛", layout="centered")
 
