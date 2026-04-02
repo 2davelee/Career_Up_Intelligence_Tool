@@ -90,7 +90,7 @@ def get_wanted_jobs(keyword, limit=20):
 
 # --- 2. Streamlit UI 및 상태 관리 (상태 유지용) ---
 
-st.set_page_config(page_title="David's Verified Hub", layout="wide")
+st.set_page_config(page_title="Dave's Verified Hub", layout="wide")
 
 # 세션 상태 초기화: 검색 데이터를 메모리에 유지
 if 'raw_data' not in st.session_state:
@@ -214,4 +214,4 @@ else:
     if not search_submit:
         st.info("사이드바에서 세부설정 후, 검색창에 검색어를 입력하고 [엔진 가동]\n\n💡 평점과 링크를 정밀 분석하느라 검색 시간이 조금 소요됩니다.")
 
-st.caption("Produced by David | Career Data Intelligence Tool (Final Verified Edition)")
+st.caption("Produced by Dave | Career Data Intelligence Tool (Final Verified Edition)")
