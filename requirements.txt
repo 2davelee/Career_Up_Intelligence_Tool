@@ -1,14 +1,4 @@
-numpy
-pandas
-Pillow
-plotly
-streamlit>=1.35.0
-altair<5
-st-gsheets-connection
-pandas
+streamlit
 requests
-streamlit-js-eval
-seaborn
-matplotlib
-scipy
-pytz
+pandas
+beautifulsoup4
