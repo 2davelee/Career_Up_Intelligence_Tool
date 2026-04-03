@@ -5,7 +5,7 @@ from bs4 import BeautifulSoup
 import re
 import time
 import random
-import urllib.parse
+from urllib.parse import quote
 from fpdf import FPDF
 import os
 import datetime
