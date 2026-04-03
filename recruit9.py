@@ -359,7 +359,7 @@ if not st.session_state.raw_data.empty:
     # 현재 시간 가져오기 (예: 2026-04-04 02:42:25)
     KST = pytz.timezone('Asia/Seoul')
     now_kst = datetime.datetime.now(KST) # 서버 시간이 아닌 한국 시간으로 가져오기
-    now = now_kst.now().strftime("%Y%m%d_%H%M")
+    now = now_kst.strftime("%Y%m%d_%H%M")
     
     # PDF 다운로드 (한글 폰트 세팅 전에는 깨질 수 있음)
     if not filtered_df.empty:
