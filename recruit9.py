@@ -238,7 +238,7 @@ with st.sidebar:
     
     st.markdown("---")
     # [핵심] 평점 필터 슬라이더 추가 (0.1단위)    
-    min_rating = st.slider("최소 평점 필터 (⭐)", 0.0, 5.0, 3.0, step=0.1, value=get_rate)
+    min_rating = st.slider("최소 평점 필터 (⭐)", 0.0, 5.0, step=0.1, value=get_rate)
     st.caption(f"⭐ {min_rating}점 이상 공고만 표시 (검색결과도 조절가능)")
     include_no_info = st.checkbox("정보없음(❓) 기업 포함하기", value=True)
 
