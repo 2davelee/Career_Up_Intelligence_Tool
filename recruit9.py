@@ -362,9 +362,30 @@ if not st.session_state.raw_data.empty:
     )
 
     # URL 공유 링크 (st.code를 써서 클릭 시 복사되게 함)
-    share_url = f"https://careerup.streamlit.app/?kw={quote(keyword)}&rate={min_rating}"
+    # 1. 주소창에서 파라미터 읽어오기 (최신 st.query_params 활용)
+    params = st.query_params
+
+    # 2. 링크로 들어온 경우 초기값 세팅
+    get_kw = params.get("kw", "")
+    get_rate = float(params.get("rate", 3.0))
+
+    # 3. UI 입력창의 인덱스나 값을 초기값으로 고정
+    keyword = st.text_input("검색어 입력", value=get_kw)
+    min_rating = st.slider("최소 평점", 0.0, 5.0, get_rate)
+
+    # 4. [핵심] 링크로 들어왔고 검색어가 있다면 자동으로 버튼 클릭 효과 내기
+    if get_kw and "searched" not in st.session_state:
+        st.session_state.searched = True
+        # 여기서 바로 검색 함수(main_logic)를 실행하거나 
+        # 검색 버튼의 상태를 강제로 True로 인식하게 처리해야 합니다.
+
+    # 사용자가 입력한 검색어와 슬라이더 값을 URL에 포함시킵니다.
+    # 예: https://careerup.streamlit.app/?kw=파이썬&rate=3.5
+    encoded_kw = urllib.parse.quote(keyword)
+    share_url = f"https://careerup.streamlit.app/?kw={encoded_kw}&rate={min_rating}"
+
     st.caption("🔗 공유 링크 (클릭 시 복사)")
-    st.code(share_url, language=None) 
+    st.code(share_url, language=None)
 
 
 else:
