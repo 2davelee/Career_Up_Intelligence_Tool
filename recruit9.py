@@ -378,7 +378,7 @@ if not st.session_state.raw_data.empty:
     )
 
     # URL 공유 링크 (st.code를 써서 클릭 시 복사되게 함)
-    encoded_kw = urllib.parse.quote(keyword)   
+    encoded_kw = quote(keyword)
     share_url = f"https://careerup.streamlit.app/?kw={encoded_kw}&rate={min_rating}"
     st.caption("🔗 공유 링크 (클릭 시 복사)")
     st.code(share_url, language=None)
