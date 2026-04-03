@@ -221,6 +221,16 @@ st.markdown("""
 st.title("🚀 커리어UP 인텔리전스 채용 검색 엔진")
 st.write("반짝이는 **평점 ⭐**을 클릭하여 **잡플래닛 상세 리뷰**를 확인하세요.")
 
+# 1. [가장 먼저] 주소창에서 파라미터부터 낚아채기
+params = st.query_params
+get_kw = params.get("kw", "") 
+
+try:
+    # 주소창에 'rate'가 있으면 그 값을, 없으면 기본값 3.0을 get_rate에 저장
+    get_rate = float(params.get("rate", 3.0))
+except:
+    get_rate = 3.0
+
 with st.sidebar:
     st.header("⚙️ 검색 & 필터 설정")
     platform_choice = st.radio("플랫폼 선택", ("전체 통합 검색", "사람인 (Saramin)", "원티드 (Wanted)"))
@@ -228,42 +238,25 @@ with st.sidebar:
     
     st.markdown("---")
     # [핵심] 평점 필터 슬라이더 추가 (0.1단위)    
-    min_rating = st.slider("최소 평점 필터 (⭐)", 0.0, 5.0, 3.0, step=0.1)
+    min_rating = st.slider("최소 평점 필터 (⭐)", 0.0, 5.0, 3.0, step=0.1, value=get_rate)
     st.caption(f"⭐ {min_rating}점 이상 공고만 표시 (검색결과도 조절가능)")
     include_no_info = st.checkbox("정보없음(❓) 기업 포함하기", value=True)
-
-# 1. 주소창에서 파라미터 가져오기 (문지기 역할)
-params = st.query_params
-get_kw = params.get("kw", "")        # 주소창에 'kw'가 있으면 가져오고 없으면 빈칸
-try:
-    # 주소창에 'rate'가 있으면 숫자로 변환, 없으면 기본값 3.0
-    get_rate = float(params.get("rate", 3.0))
-except:
-    get_rate = 3.0
-
-# 2. [사이드바] 기존 평점 슬라이더 (새로 만드는 게 아니라 value만 get_rate로 연결)
-with st.sidebar:
-    st.title("설정")
-    min_rating = st.slider("최소 평점", 0.0, 5.0, value=get_rate, step=0.1)
-
-# 3. [메인] 기존 검색어 입력창 (value를 get_kw로 연결)
-keyword = st.text_input("검색어 입력", value=get_kw, placeholder="직무나 기술 스택을 입력하세요")
-
-# 4. [자동 실행 로직] 링크로 들어왔을 때 버튼 안 눌러도 실행되게 설정
-auto_search = False
-if get_kw and "searched" not in st.session_state:
-    auto_search = True
-    st.session_state.searched = True
 
 with st.form(key='search_form'):
     col1, col2 = st.columns([4, 1], vertical_alignment="bottom")
     with col1:
-        keyword = st.text_input("직무 키워드 입력", placeholder="예: 데이터기획, AI PM")
+        keyword = st.text_input("직무 키워드 입력", value=get_kw, placeholder="예: 데이터기획, AI PM")
+
+        # [자동 실행 로직] 링크로 들어왔을 때 버튼 안 눌러도 실행되게 설정
+        auto_search = False
+        if get_kw and "searched" not in st.session_state:
+            auto_search = True
+            st.session_state.searched = True
     with col2:
         search_submit = st.form_submit_button("엔진 가동", use_container_width=True)
 
 # 1. 데이터 수집 실행
-if search_submit:
+if search_submit or auto_search:
     if keyword:
         with st.spinner(f"데이브 엔진이 {keyword} 공고를 정밀 스캔 중..."):
             if platform_choice == "사람인 (Saramin)":
