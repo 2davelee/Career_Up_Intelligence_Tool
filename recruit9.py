@@ -8,7 +8,7 @@ import random
 from urllib.parse import quote
 from fpdf import FPDF
 import os
-from datetime import datetime
+import datetime
 import pytz
 import logging
 logging.getLogger("fpdf.fonts").setLevel(logging.ERROR)
