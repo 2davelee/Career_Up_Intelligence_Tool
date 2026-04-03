@@ -232,16 +232,24 @@ with st.sidebar:
     st.caption(f"⭐ {min_rating}점 이상 공고만 표시 (검색결과도 조절가능)")
     include_no_info = st.checkbox("정보없음(❓) 기업 포함하기", value=True)
 
-# 주소창에서 값 읽어오기
+# 1. 주소창에서 파라미터 가져오기 (문지기 역할)
 params = st.query_params
-get_kw = params.get("kw", "")
-get_rate = float(params.get("rate", 3.0))
+get_kw = params.get("kw", "")        # 주소창에 'kw'가 있으면 가져오고 없으면 빈칸
+try:
+    # 주소창에 'rate'가 있으면 숫자로 변환, 없으면 기본값 3.0
+    get_rate = float(params.get("rate", 3.0))
+except:
+    get_rate = 3.0
 
-# 입력창과 슬라이더에 주소창 값을 기본으로 넣어줌
-keyword = st.text_input("검색어 입력", value=get_kw)
-min_rating = st.slider("최소 평점", 0.0, 5.0, get_rate)
+# 2. [사이드바] 기존 평점 슬라이더 (새로 만드는 게 아니라 value만 get_rate로 연결)
+with st.sidebar:
+    st.title("설정")
+    min_rating = st.slider("최소 평점", 0.0, 5.0, value=get_rate, step=0.1)
 
-# [핵심] 링크로 들어왔으면 '분석 시작' 버튼을 안 눌러도 누른 것처럼 속이기
+# 3. [메인] 기존 검색어 입력창 (value를 get_kw로 연결)
+keyword = st.text_input("검색어 입력", value=get_kw, placeholder="직무나 기술 스택을 입력하세요")
+
+# 4. [자동 실행 로직] 링크로 들어왔을 때 버튼 안 눌러도 실행되게 설정
 auto_search = False
 if get_kw and "searched" not in st.session_state:
     auto_search = True
