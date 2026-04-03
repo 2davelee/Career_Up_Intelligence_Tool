@@ -9,6 +9,7 @@ from urllib.parse import quote
 from fpdf import FPDF
 import os
 from datetime import datetime
+import pytz
 import logging
 logging.getLogger("fpdf.fonts").setLevel(logging.ERROR)
 
@@ -334,7 +335,9 @@ if not st.session_state.raw_data.empty:
 
     # UI 하단 액션 섹션
     # 현재 시간 가져오기 (예: 2026-04-04 02:42:25)
-    now = datetime.now().strftime("%Y%m%d_%H%M")
+    KST = pytz.timezone('Asia/Seoul')
+    now_kst = datetime.datetime.now(KST) # 서버 시간이 아닌 한국 시간으로 가져오기
+    now = now_kst.now().strftime("%Y%m%d_%H%M")
     
     # PDF 다운로드 (한글 폰트 세팅 전에는 깨질 수 있음)
     if not filtered_df.empty:
