@@ -226,6 +226,12 @@ params = st.query_params
 get_kw = params.get("kw", "") 
 
 try:
+    # 주소창에 'row'가 있으면 그 값을, 없으면 기본값 15를 가져옵니다.
+    get_row = int(params.get("row", 15))
+except:
+    get_row = 15
+
+try:
     # 주소창에 'rate'가 있으면 그 값을, 없으면 기본값 3.0을 get_rate에 저장
     get_rate = float(params.get("rate", 3.0))
 except:
@@ -234,7 +240,7 @@ except:
 with st.sidebar:
     st.header("⚙️ 검색 & 필터 설정")
     platform_choice = st.radio("플랫폼 선택", ("전체 통합 검색", "사람인 (Saramin)", "원티드 (Wanted)"))
-    row_count = st.slider("수집할 공고 개수 (플랫폼당)", 5, 50, 15)
+    row_count = st.slider("수집할 공고 개수 (플랫폼당)", 5, 50, value=get_row)
     
     st.markdown("---")
     # [핵심] 평점 필터 슬라이더 추가 (0.1단위)    
@@ -379,7 +385,7 @@ if not st.session_state.raw_data.empty:
 
     # URL 공유 링크 (st.code를 써서 클릭 시 복사되게 함)
     encoded_kw = quote(keyword)
-    share_url = f"https://careerup.streamlit.app/?kw={encoded_kw}&rate={min_rating}"
+    share_url = f"https://careerup.streamlit.app/?kw={encoded_kw}&rate={min_rating}&row={row_count}"
     st.caption("🔗 공유 링크 (클릭 시 복사)")
     st.code(share_url, language=None)
 
