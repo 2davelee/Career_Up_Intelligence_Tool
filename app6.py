@@ -205,8 +205,6 @@ for i in range(st.session_state.menu_count):
 btn_cols = st.columns([2, 2, 2, 2, 2])
 with btn_cols[0]:
     if st.button("➖ 메뉴 줄이기") and st.session_state.menu_count > 2:
-        # [해결] 에러를 유발하던 st.session_state[key] = ... 코드를 삭제했습니다.
-        # 이미 위젯의 key와 value가 연결되어 있어 이대로 rerun해도 떡볶이는 안전합니다.
         st.session_state.menu_count -= 1
         st.rerun()
 
