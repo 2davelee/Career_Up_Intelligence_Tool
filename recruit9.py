@@ -667,10 +667,10 @@ with placeholder.container():
 
             p_id = "saramin"
             # 공유용 URL 생성
-            # share_url = f"https://careerup.streamlit.app/?kw={encoded_kw}&platform={p_id}&rate={min_rating}&row={row_count}"
+            share_url = f"https://careerup.streamlit.app/?kw={encoded_kw}&platform={p_id}&rate={min_rating}&row={row_count}"
 
             # (로컬용 주소)
-            share_url = f"http://localhost:8501/?kw={encoded_kw}&platform={p_id}&rate={min_rating}&row={row_count}"
+            # share_url = f"http://localhost:8501/?kw={encoded_kw}&platform={p_id}&rate={min_rating}&row={row_count}"
 
             # p_id = platform_map_to_id.get(platform_choice, "all")
             st.caption("🔗 공유 하기 (아래 링크 오른쪽 끝 클릭시 복사)")
