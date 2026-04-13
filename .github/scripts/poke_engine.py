@@ -16,40 +16,59 @@ driver = webdriver.Chrome(options=options)
 
 try:
     print("🚀 데이브 엔진 기상 시도...")
-    driver.get("https://your-app-url.streamlit.app/") 
+    driver.get("https://your-app-url.streamlit.app/") # URL 꼭 확인!
     
-    # 1. 초기 로딩 대기
-    time.sleep(30) 
+    # 1. 충분한 초기 로딩 (스트림릿은 깨어나는 데 시간이 꽤 걸립니다)
+    time.sleep(45) 
     
-    # 2. iframe 전환
-    if len(driver.find_elements(By.TAG_NAME, "iframe")) > 0:
-        print("🌐 iframe 내부로 진입합니다.")
-        driver.switch_to.frame(0)
+    # 2. iframe 전환 (발견될 때까지 대기)
+    try:
+        wait = WebDriverWait(driver, 20)
+        iframe = wait.until(EC.presence_of_element_located((By.TAG_NAME, "iframe")))
+        driver.switch_to.frame(iframe)
+        print("🌐 iframe 내부 진입 성공")
+    except:
+        print("⚠️ iframe을 찾지 못했습니다. 메인 컨텐츠에서 계속 진행합니다.")
+
+    # 3. 인풋창 탐색 (저인망 전략)
+    print("🔍 검색창 타겟팅 중...")
     
-    # 3. 인풋창이 '상호작용 가능'할 때까지 대기 (핵심!)
-    wait = WebDriverWait(driver, 30)
-    print("🔍 검색창 활성화 대기 중...")
+    # 모든 input 태그를 다 가져옵니다.
+    inputs = driver.find_elements(By.TAG_NAME, "input")
+    print(f"📦 발견된 input 개수: {len(inputs)}")
+
+    target_input = None
+    for idx, i in enumerate(inputs):
+        placeholder = i.get_attribute("placeholder")
+        print(f"   [{idx}] placeholder: {placeholder}")
+        # 우리가 설정한 placeholder 키워드가 포함되어 있다면 그놈입니다.
+        if placeholder and "직무" in placeholder:
+            target_input = i
+            break
     
-    # 단순히 존재하는 게 아니라, '클릭 가능'할 때까지 기다립니다.
-    search_input = wait.until(EC.element_to_be_clickable((By.TAG_NAME, "input")))
-    
-    # 4. 안전하게 입력 수행
-    # 가끔 바로 입력하면 씹히는 경우가 있어 클릭 후 여유를 줍니다.
-    search_input.click()
-    time.sleep(1)
-    
-    # 기존 내용 지우고 입력
-    search_input.send_keys(Keys.CONTROL + "a")
-    search_input.send_keys(Keys.BACKSPACE)
-    search_input.send_keys("AI PM")
-    time.sleep(1)
-    search_input.send_keys(Keys.ENTER)
-    
-    print("✅ 성공: 데이브 엔진이 힘차게 깨어났습니다!")
-    time.sleep(5)
+    # 만약 placeholder로 못 찾았다면 첫 번째 인풋을 강제로 사용
+    if not target_input and len(inputs) > 0:
+        target_input = inputs[0]
+        print("⚠️ placeholder로 못 찾아 첫 번째 input을 강제 선택했습니다.")
+
+    if target_input:
+        # 4. 동작 수행 (클릭 -> 지우기 -> 입력)
+        driver.execute_script("arguments[0].scrollIntoView();", target_input) # 스크롤 이동
+        time.sleep(1)
+        target_input.click()
+        target_input.send_keys(Keys.CONTROL + "a")
+        target_input.send_keys(Keys.BACKSPACE)
+        target_input.send_keys("AI PM")
+        time.sleep(1)
+        target_input.send_keys(Keys.ENTER)
+        print("✅ 성공: 데이브 엔진 기상 완료!")
+    else:
+        print("❌ 실패: 사용 가능한 input 요소를 찾지 못했습니다.")
 
 except Exception as e:
     print(f"❌ 에러 발생: {e}")
+    # 디버깅을 위해 현재 페이지의 텍스트 일부 출력
+    print(driver.find_element(By.TAG_NAME, "body").text[:500])
 
 finally:
     driver.quit()
