@@ -6,41 +6,50 @@ from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 import time
 
-# 브라우저 설정 (액션 서버 환경에 최적화)
 options = Options()
-options.add_argument("--headless") # 화면 없이 실행
+options.add_argument("--headless")
 options.add_argument("--no-sandbox")
 options.add_argument("--disable-dev-shm-usage")
+# 유저 에이전트를 설정해 실제 브라우저처럼 보이게 합니다.
+options.add_argument("user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
 
 driver = webdriver.Chrome(options=options)
 
 try:
-    # 1. 앱 접속 (데이비드님의 스트림릿 URL로 수정하세요)
-    driver.get("https://careerup.streamlit.app/")
+    print("🚀 데이브 엔진 기상 시도...")
+    driver.get("https://careerup.streamlit.app/") # URL 다시 확인!
     
-    # 2. 앱이 깨어날 때까지 대기 (최대 30초)
-    # 인풋창이 나타날 때까지 기다립니다.
+    # 1. 페이지 로딩 대기
+    time.sleep(30) 
+    
+    # 2. 스트림릿 메인 iframe이 있는지 확인하고 전환 (핵심!)
+    # 스트림릿 클라우드는 앱 콘텐츠를 보통 iframe 내부에 둡니다.
+    if len(driver.find_elements(By.TAG_NAME, "iframe")) > 0:
+        print("🌐 iframe 발견! 내부로 전환합니다.")
+        driver.switch_to.frame(0)
+    
+    # 3. 인풋창 찾기 (가장 원시적이지만 확실한 방법)
+    # placeholder고 뭐고 그냥 '첫 번째 나오는 input'을 잡습니다.
     wait = WebDriverWait(driver, 30)
-    search_input = wait.until(EC.presence_of_element_located(
-    (By.XPATH, f"//input[@placeholder='직무 키워드를 입력하세요.(예: 데이터기획, AI PM)']")))
+    print("🔍 검색창 타겟팅 중...")
     
-    # 3. 검색어 입력 (AI PM으로 검색하여 캐시 예열)
-    # 기존 값이 있을 수 있으므로 Ctrl+A -> Backspace 후 입력
-    search_input.send_keys(Keys.CONTROL + "a")
-    search_input.send_keys(Keys.BACKSPACE)
+    # 모든 input 태그 중 첫 번째 요소를 기다림
+    search_input = wait.until(EC.presence_of_element_located((By.TAG_NAME, "input")))
+    
+    # 4. 동작 수행
+    search_input.click() # 일단 클릭해서 포커스
     search_input.send_keys("AI PM")
-    
-    # 4. 엔터키 입력 (st.text_input은 엔터 시 바로 트리거됨)
     search_input.send_keys(Keys.ENTER)
     
-    print("✅ 데이브 엔진: 검색 액션 수행 완료. 캐시 예열 중...")
-    
-    # 결과가 로딩될 때까지 잠시 대기
-    time.sleep(10)
-    print("✅ 엔진 상태 양호. 8시간 후 다시 깨우겠습니다.")
+    print("✅ 성공: 엔진이 정상적으로 깨어났습니다!")
+    time.sleep(5)
 
 except Exception as e:
-    print(f"❌ 에러 발생: {e}")
+    print(f"❌ 실패 로그: {e}")
+    # 실패 시 화면 스크린샷 대신 HTML 소스 일부 출력 (디버깅용)
+    print("--- 현재 페이지 태그 요약 ---")
+    tags = [tag.tag_name for tag in driver.find_elements(By.XPATH, "//*")[:20]]
+    print(f"상위 태그 목록: {tags}")
 
 finally:
     driver.quit()
