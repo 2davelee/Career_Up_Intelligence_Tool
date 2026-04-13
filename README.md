@@ -9,7 +9,7 @@ Core Logic
 3. Data Intelligence: 평점 필터링(Min Score) 및 중복/제외 공고 필터링을 통해 '클린 데이터' 추출.
 4. Report Generation: 수집된 데이터를 하이퍼링크가 포함된 PDF 및 CSV 리포트로 즉시 변환.
 
-Tech Stack
+🛰 Tech Stack
 - Languages: Python, CSS3, HTML5
 - Frontend: Streamlit (Dashboard UI)
 - Data Processing: Pandas, Regular Expression
