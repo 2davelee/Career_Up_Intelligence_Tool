@@ -70,12 +70,12 @@ def create_pdf(df):
         
         pdf.set_xy(15, curr_y + 8)
         # [수정] txt -> text
-        pdf.multi_cell(130, 6, text=f"TITLE: {row['공고제목']}")
+        pdf.multi_cell(130, 6, text=f"Title: {row['공고제목']}")
         
         pdf.set_xy(15, pdf.get_y())
         pdf.set_text_color(80, 80, 80)
         # [수정] txt -> text
-        pdf.multi_cell(130, 6, text=f"QUALIFICATION: {qual_text}")
+        pdf.multi_cell(130, 6, text=f"Qualification: {qual_text}")
 
         # --- 오른쪽 영역 ---
         score = row['평점'] if row['평점'] > 0 else "N/A"
