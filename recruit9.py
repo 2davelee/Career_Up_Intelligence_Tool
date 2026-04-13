@@ -429,9 +429,14 @@ with st.sidebar:
     st.caption(f"⭐ {min_rating}점 이상 공고만 표시 (검색화면 내 조절가능)")
     include_no_info = st.checkbox("정보없음(❓) 기업 포함하기", value=True)
     if st.sidebar.button("전체 초기화 (Clear All)"):
+        # 1. 데이터 및 제외 목록 초기화
         st.session_state.raw_data = pd.DataFrame()
-        if 'excluded_links' in st.session_state:
-            st.session_state.excluded_links = set()
+        st.session_state.excluded_links = set()
+        
+        # 2. 입력창 관련 세션도 초기화
+        if 'last_kw' in st.session_state:
+            st.session_state.last_kw = ""
+
         st.cache_data.clear()
         st.query_params.clear()
         st.rerun()
