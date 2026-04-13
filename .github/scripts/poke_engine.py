@@ -22,8 +22,7 @@ try:
     # 인풋창이 나타날 때까지 기다립니다.
     wait = WebDriverWait(driver, 30)
     search_input = wait.until(EC.presence_of_element_located(
-    (By.XPATH, f"//input[@placeholder='직무 키워드를 입력하세요.(예: 데이터기획, AI PM)']")
-))"
+    (By.XPATH, f"//input[@placeholder='직무 키워드를 입력하세요.(예: 데이터기획, AI PM)']")))
     
     # 3. 검색어 입력 (AI PM으로 검색하여 캐시 예열)
     # 기존 값이 있을 수 있으므로 Ctrl+A -> Backspace 후 입력
