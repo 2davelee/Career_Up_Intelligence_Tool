@@ -396,7 +396,7 @@ except:
 
 try:
     # 주소창에 'rate'가 있으면 그 값을, 없으면 기본값 3.0을 get_rate에 저장
-    get_rate = float(params.get("rate", 3.0))
+    get_rate = float(params.get("rate", 2.5))
 except:
     get_rate = 3.0
 
