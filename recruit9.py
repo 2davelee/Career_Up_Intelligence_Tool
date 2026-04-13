@@ -447,13 +447,14 @@ with st.form(key='search_form'):
     with col2:
         search_submit = st.form_submit_button("엔진 가동", use_container_width=True)
 
-placeholder = st.empty()
+
+result_placeholder = st.empty()
 
 # 1. 데이터 수집 실행
 if search_submit or auto_search:
     if keyword:
         # 1. 수집 전 세션 바구니를 확실히 비웁니다.
-        placeholder.empty()
+        result_placeholder.empty()
         st.session_state.raw_data = pd.DataFrame()
         
         if search_submit:
@@ -473,7 +474,7 @@ if search_submit or auto_search:
         ]
 
         # [레이아웃] 스피너와 멘트를 한 줄에 배치 (비율 1:15로 밀착)
-        with st.container(): 
+        with result_placeholder.container(): 
             col1, col2 = st.columns([1, 40])
             with col1:
                 spinner_placeholder = st.empty()
@@ -521,6 +522,7 @@ if search_submit or auto_search:
             st.rerun()
         else:
             st.warning("결과를 찾지 못했습니다. 키워드를 조금 더 범용적으로 바꿔보세요!")
+        auto_search = False 
 
         # with st.spinner():
         #     try:
@@ -549,8 +551,7 @@ if search_submit or auto_search:
 
         # 4. 🏁 수집이 '완전히' 끝난 후에만 리런!
         # auto_search 플래그는 여기서 꺼줍니다.
-        auto_search = False 
-        st.rerun()
+
         
 # 2. 데이터 전시 및 실시간 삭제 로직
 
@@ -666,10 +667,10 @@ with placeholder.container():
 
             p_id = "saramin"
             # 공유용 URL 생성
-            share_url = f"https://careerup.streamlit.app/?kw={encoded_kw}&platform={p_id}&rate={min_rating}&row={row_count}"
+            # share_url = f"https://careerup.streamlit.app/?kw={encoded_kw}&platform={p_id}&rate={min_rating}&row={row_count}"
 
             # (로컬용 주소)
-            #share_url = f"http://localhost:8501/?kw={encoded_kw}&platform={p_id}&rate={min_rating}&row={row_count}"
+            share_url = f"http://localhost:8501/?kw={encoded_kw}&platform={p_id}&rate={min_rating}&row={row_count}"
 
             # p_id = platform_map_to_id.get(platform_choice, "all")
             st.caption("🔗 공유 하기 (아래 링크 오른쪽 끝 클릭시 복사)")
