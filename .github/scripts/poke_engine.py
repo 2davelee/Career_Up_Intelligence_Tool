@@ -14,7 +14,7 @@ driver = webdriver.Chrome(options=options)
 
 try:
     print("🚀 데이브 엔진 기상 시도...")
-    driver.get("https://your-app-url.streamlit.app/") # URL 확인 필수!
+    driver.get("https://careerup.streamlit.app/") # URL 확인 필수!
     
     # 1. 1차 대기 (메인 프레임 로딩)
     time.sleep(30) 
