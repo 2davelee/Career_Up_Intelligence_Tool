@@ -21,7 +21,6 @@ try:
     # 2. 앱이 깨어날 때까지 대기 (최대 30초)
     # 인풋창이 나타날 때까지 기다립니다.
     wait = WebDriverWait(driver, 30)
-    search_input = wait.until(EC.presence_of_element_search((By.TAG_NAME, "input")))
     search_input = wait.until(EC.presence_of_element_located(
     (By.XPATH, f"//input[@placeholder='직무 키워드를 입력하세요.(예: 데이터기획, AI PM)']")
 ))
