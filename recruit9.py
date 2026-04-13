@@ -591,7 +591,7 @@ with placeholder.container():
             st.info("💡 각 공고의 **상세보기**를 눌러 자격요건을 확인하고, 필요 없는 공고는 **제외**하세요.")
 
             # --- 헤더 출력 ---
-            h_style = '<p style="font-size: 0.9rem; font-weight: 700; color: #31333F; margin-bottom: 0px;">',
+            h_style = '<p style="font-size: 0.9rem; font-weight: 700; color: #31333F; margin-bottom: 0px;">'
             h_style_center = '<p style="font-size: 0.9rem; font-weight: 700; color: #31333F; margin-bottom: 0px; text-align: center;">'
             h1, h2, h3, h4 = st.columns([1.5, 1, 4, 1.5])
             with h1: st.markdown(f"{h_style}🏢 회사명</p>", unsafe_allow_html=True)
