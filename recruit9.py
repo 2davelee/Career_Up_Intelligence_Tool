@@ -366,7 +366,7 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 st.markdown('<a href="/" target="_self" class="title-link"><h1>🚀 커리어UP 인텔리전스 채용 검색 엔진</h1></a>', unsafe_allow_html=True)
-st.write("반짝이는 **평점 ⭐**을 클릭하여 **잡플래닛 상세 리뷰**를 확인하세요.")
+st.write("반짝이는 **평점**⭐을 클릭하여 **잡플래닛 상세 리뷰**를 확인하세요.")
 
 # [가장 먼저] 주소창에서 파라미터부터 낚아채기
 # --- 1. 주소창 파라미터 낚아채기 (기존 위치) ---
