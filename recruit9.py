@@ -437,14 +437,15 @@ with st.sidebar:
         st.rerun()
 
 with st.form(key='search_form'):
-    col1, col2 = st.columns([4, 1], vertical_alignment="bottom")
+    col1, col2 = st.columns([4, 1])
     with col1:
-        keyword = st.text_input("직무 키워드 입력", value=get_kw, placeholder="예: 데이터기획, AI PM")
+        # 라벨은 존재하지만 화면 공간을 차지하지 않게 만듭니다.
+        keyword = st.text_input("직무 키워드 입력", value=get_kw, 
+                               placeholder="직무 키워드를 입력하세요.(예: 데이터기획, AI PM)", 
+                               label_visibility="collapsed")
 
     with col2:
         search_submit = st.form_submit_button("엔진 가동", use_container_width=True)
-
-
 
 placeholder = st.empty()
 
@@ -452,6 +453,7 @@ placeholder = st.empty()
 if search_submit or auto_search:
     if keyword:
         # 1. 수집 전 세션 바구니를 확실히 비웁니다.
+        placeholder.empty()
         st.session_state.raw_data = pd.DataFrame()
         
         if search_submit:
@@ -467,19 +469,16 @@ if search_submit or auto_search:
             "🤖 유망한 공고들만 골라내는 선별기 가동...",
             "📂 최신 채용 트렌드 데이터 로드 중...",
             "💎 당신의 커리어에 딱 맞는 기회 탐색 중...",
-            "⭐ 잡플래닛 평점 정밀 분석 중 (이 작업은 정성이 필요합니다)..."
+            "⭐ 잡플래닛 평점 정밀 분석 중..."
         ]
 
         # [레이아웃] 스피너와 멘트를 한 줄에 배치 (비율 1:15로 밀착)
-        col1, col2 = st.columns([1, 40])
-        
-        with col1:
-            # 텍스트 없는 순수 스피너 실행
-            spinner_placeholder = st.empty()
-        
-        with col2:
-            # 멘트가 들어갈 고정 영역
-            log_placeholder = st.empty()
+        with st.container(): 
+            col1, col2 = st.columns([1, 40])
+            with col1:
+                spinner_placeholder = st.empty()
+            with col2:
+                log_placeholder = st.empty()
 
         # 백그라운드 데이터 수집 스레드 설정
         res_df_container = []
@@ -518,7 +517,7 @@ if search_submit or auto_search:
         if res_df is not None and not res_df.empty:
             st.session_state.raw_data = res_df.copy().reset_index(drop=True)
             # 안전한 리런을 위해 아주 미세한 지연 후 실행
-            time.sleep(0.1)
+            # time.sleep(0.1)
             st.rerun()
         else:
             st.warning("결과를 찾지 못했습니다. 키워드를 조금 더 범용적으로 바꿔보세요!")
@@ -558,7 +557,7 @@ if search_submit or auto_search:
 placeholder = st.empty()
 if (st.session_state.raw_data is None or st.session_state.raw_data.empty) and not search_submit:
     with placeholder.container():
-        st.info("사이드바에서 세부설정 후, 검색창에 검색어를 입력하고 [엔진 가동]\n\n💡 평점과 링크를 정밀 분석하느라 검색 시간이 조금 소요됩니다.")
+        st.info("**사이드바**(**>>**)에서 세부설정 후, 검색창에 키워드를 입력하고 [**엔진 가동**]\n\n💡 평점과 링크를 정밀 분석하느라 검색 시간이 조금 소요됩니다.")
         # st.caption("Produced by Dave | CareerUp Intelligence Tool (1st Edition)")
 
 with placeholder.container():
@@ -588,16 +587,16 @@ with placeholder.container():
         # 최종 결과물이 있을 때만 UI 렌더링
         if not filtered_df.empty:
             st.subheader(f"✅ 현재 검색된 공고 ({len(filtered_df)}건)")
-            st.info("💡 각 공고의 **상세보기**를 눌러 자격요건을 확인하고, 필요 없는 공고는 **제외**하세요.")
+            st.info("💡 **상세링크**🔗를 눌러 세부사항을 확인하고, 필요 없는 공고는 **제외**🗑️하세요.")
 
             # --- 헤더 출력 ---
             h_style = '<p style="font-size: 0.9rem; font-weight: 700; color: #31333F; margin-bottom: 0px;">'
-            h_style_center = '<p style="font-size: 0.9rem; font-weight: 700; color: #31333F; margin-bottom: 0px; text-align: center;">'
+            # h_style_center = '<p style="font-size: 0.9rem; font-weight: 700; color: #31333F; margin-bottom: 0px; text-align: center;">'
             h1, h2, h3, h4 = st.columns([1.5, 1, 4, 1.5])
             with h1: st.markdown(f"{h_style}🏢 회사명</p>", unsafe_allow_html=True)
             with h2: st.markdown(f"{h_style}⭐ 평점</p>", unsafe_allow_html=True)
             with h3: st.markdown(f"{h_style}📝 공고 제목</p>", unsafe_allow_html=True)
-            with h4: st.markdown(f"{h_style_center}⚙️ 상세링크 및 제외</p>", unsafe_allow_html=True)
+            with h4: st.markdown(f"{h_style}⚙️ 상세링크 및 제외</p>", unsafe_allow_html=True)
             st.markdown('<hr style="border: 1px solid #31333F; margin-top: 5px; margin-bottom: 15px;">', unsafe_allow_html=True)
 
             # --- 리스트 출력 (for 루프) ---
