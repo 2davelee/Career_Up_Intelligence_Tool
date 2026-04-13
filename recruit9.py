@@ -588,7 +588,7 @@ with placeholder.container():
         # 최종 결과물이 있을 때만 UI 렌더링
         if not filtered_df.empty:
             st.subheader(f"✅ 현재 검색된 공고 ({len(filtered_df)}건)")
-            st.info("💡 각 공고의 **[상세보기]**를 눌러 자격요건을 확인하고, 필요 없는 공고는 **[제외]**하세요.")
+            st.info("💡 각 공고의 **상세보기**를 눌러 자격요건을 확인하고, 필요 없는 공고는 **제외**하세요.")
 
             # --- 헤더 출력 ---
             h_style = '<p style="font-size: 0.9rem; font-weight: 700; color: #31333F; margin-bottom: 0px;">'
@@ -596,7 +596,7 @@ with placeholder.container():
             with h1: st.markdown(f"{h_style}🏢 회사명</p>", unsafe_allow_html=True)
             with h2: st.markdown(f"{h_style}⭐ 평점</p>", unsafe_allow_html=True)
             with h3: st.markdown(f"{h_style}📝 공고 제목</p>", unsafe_allow_html=True)
-            with h4: st.markdown(f"{h_style}⚙️ 상세보기 및 제외</p>", unsafe_allow_html=True)
+            with h4: st.markdown(f"{h_style_center}⚙️ 상세링크 및 제외</p>", unsafe_allow_html=True)
             st.markdown('<hr style="border: 1px solid #31333F; margin-top: 5px; margin-bottom: 15px;">', unsafe_allow_html=True)
 
             # --- 리스트 출력 (for 루프) ---
@@ -614,10 +614,12 @@ with placeholder.container():
                             st.write("❓")
                     with c3:
                         st.markdown(f"{row['공고제목']}")
+                        st.caption(row['지원자격'])
                     with c4:
                         b1, b2 = st.columns(2)
                         with b1:
-                            show_detail = st.button("🔍", key=f"dt_{unique_key}", help="상세보기", use_container_width=True)
+                            st.link_button("🔗", row['링크'], help="상세 공고링크", use_container_width=True)
+                            # show_detail = st.button("🔍", key=f"dt_{unique_key}", help="상세보기", use_container_width=True)
                         with b2:
                             if st.button("🗑️", key=f"del_{unique_key}", help="제외", use_container_width=True):
                                 st.session_state.excluded_links.add(row['링크'])
@@ -625,10 +627,10 @@ with placeholder.container():
                                 st.session_state.raw_data = st.session_state.raw_data[st.session_state.raw_data.index != idx]
                                 st.rerun()
                     
-                    if show_detail:
-                        with st.expander("📄 상세 지원자격 및 공고 링크", expanded=True):
-                            st.write(row['지원자격'])
-                            st.link_button("공고 원문 페이지로 이동 🔗", row['링크'], use_container_width=True)
+                    # if show_detail:
+                    #     with st.expander("📄 상세 지원자격 및 공고 링크", expanded=True):
+                    #         st.write(row['지원자격'])
+                    #         st.link_button("공고 원문 페이지로 이동 🔗", row['링크'], use_container_width=True)
                     st.divider()    
 
             # UI 하단 액션 섹션
@@ -664,13 +666,12 @@ with placeholder.container():
 
             p_id = "saramin"
             # 공유용 URL 생성
-            share_url = f"http://localhost:8501/?kw={encoded_kw}&platform={p_id}&rate={min_rating}&row={row_count}"
+            share_url = f"https://careerup.streamlit.app/?kw={encoded_kw}&platform={p_id}&rate={min_rating}&row={row_count}"
 
-            # (운영용 주소로 쓰실 때를 대비해 아래 줄도 수정해둡니다)
-            # share_url = f"https://careerup.streamlit.app/?kw={encoded_kw}&platform={p_id}&rate={min_rating}&row={row_count}"
+            # (로컬용 주소)
+            #share_url = f"http://localhost:8501/?kw={encoded_kw}&platform={p_id}&rate={min_rating}&row={row_count}"
 
             # p_id = platform_map_to_id.get(platform_choice, "all")
-            # share_url = f"http://localhost:8501/?kw={encoded_kw}&platform={p_id}&rate={min_rating}&row={row_count}"
             st.caption("🔗 공유 하기 (아래 링크 오른쪽 끝 클릭시 복사)")
             st.code(share_url, language=None)
 
