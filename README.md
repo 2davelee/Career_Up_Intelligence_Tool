@@ -5,9 +5,9 @@
 🛠️ Logic & Tech Stack
 Core Logic
 1. Real-time Scraping: 'Request'와 'BeautifulSoup'을 사용하여 사람인의 최신 채용 공고 수집.
-3. Score Matching Engine: '엄선된 방식'으로 수집한 해당 기업의 잡플래닛 평점을 사람인 공고와 매칭. 
-4. Data Intelligence: 최소 평점 필터링 및 실시간리스트 관리를 통한  '데이터 가치' 보존.
-5. Report Generation: 수집 및 직접 편집된 데이터들을 PDF 및 CSV로 다운 받아는 '편리성'.
+3. Score Matching Engine: 'Pandas'를 통한 사람인 공고와 해당 기업의 잡플래닛 평점 매칭. 
+4. Data Intelligence: 최소 평점 필터링 및 실시간 리스트 관리를 통한  '데이터 가치' 보존.
+5. Report Generation: 유저에 의해 최종 선별된 공고 리스트를 PDF 및 CSV로 다운 받는 '편리성'.
 
 🛰 Tech Stack
 - Languages: Python, CSS3, HTML5
