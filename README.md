@@ -4,10 +4,10 @@
 
 🛠️ Logic & Tech Stack
 Core Logic
-1. Real-time Scraping: Requests와 BeautifulSoup을 사용하여 사람인의 최신 채용 공고 수집.
-2. Score Matching Engine: 네이버 검색 API와 정규표현식(re)을 활용해 해당 기업의 잡플래닛 평점 및 리뷰 링크를 실시간으로 타겟팅.
-3. Data Intelligence: 평점 필터링(Min Score) 및 중복/제외 공고 필터링을 통해 '클린 데이터' 추출.
-4. Report Generation: 수집된 데이터를 하이퍼링크가 포함된 PDF 및 CSV 리포트로 즉시 변환.
+1. Real-time Scraping: 'Request'와 'BeautifulSoup'을 사용하여 사람인의 최신 채용 공고 수집.
+3. Score Matching Engine: '엄선된 방식'으로 수집한 해당 기업의 잡플래닛 평점을 사람인 공고와 매칭. 
+4. Data Intelligence: 최소 평점 필터링 및 실시간리스트 관리를 통한  '데이터 가치' 보존.
+5. Report Generation: 수집 및 직접 편집된 데이터들을 PDF 및 CSV로 다운 받아는 '편리성'.
 
 🛰 Tech Stack
 - Languages: Python, CSS3, HTML5
@@ -27,12 +27,12 @@ Core Logic
     - URL 파라미터 공유: 현재 검색 설정(키워드, 필터 등)을 URL 링크 하나로 공유 가능.
 
 🤖 Reliability (Zero-Downtime)
-- Server Poking: Streamlit Cloud의 휴면 모드를 방지하기 위해 GitHub Actions를 통해 8시간 주기로 세션을 활성화합니다.
-- Multithreading: 데이터 수집 시 UI 멈춤 현상을 방지하기 위해 threading을 적용하여 무중단 사용자 경험을 제공합니다.
+- Server Poking: Streamlit Cloud의 휴면 모드를 방지하기 위해 GitHub Actions를 통해 8시간 주기로 세션을 활성화.
+- Multithreading: 데이터 수집 시 UI 멈춤 현상을 방지하기 위해 threading을 적용하여 무중단 사용자 경험을 제공.
 
 👨‍💻 Developer: Dave
 - Focus: 데이터 기반의 효율적인 구직 의사결정 프로세스 설계 및 자동화.
-- Philosophy: "복잡한 정보의 결합을 통해 의사결정 비용을 최소화한다."
+- Philosophy: "복잡한 정보의 결합을 통해 의사결정 비용을 최소화합니다."
 
 🚀 Usage
 # 관련 라이브러리 설치
