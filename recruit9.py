@@ -375,7 +375,6 @@ def get_wanted_jobs(keyword, limit=20):
 #         # 에러 발생 시 빈 데이터프레임 반환하여 전체 로직 유지
 #         return pd.DataFrame()
     
-
 # @st.cache_data(ttl=600, show_spinner=False)
 # def get_wanted_jobs(keyword, limit=20):
 #     st.write(f"DEBUG: 현재 원티드 검색어 -> {keyword}")
@@ -443,8 +442,6 @@ id_map_to_platform = {
 get_platform = id_map_to_platform.get(get_p_id, "사람인 (Saramin)")
 
 # --- 2. [수정] 무한 루프 방지 로직 ---
-auto_search = False
-
 # 조건: 주소창에 키워드가 있고 + 아직 검색을 안 했거나 + 주소창 키워드가 이전 검색과 다를 때만 실행
 auto_search = False
 if get_kw:
@@ -609,7 +606,6 @@ if search_submit or (keyword and keyword != st.session_state.get('last_kw', ''))
         # auto_search 플래그는 여기서 꺼줍니다.
 
 # 2. 데이터 전시 및 실시간 삭제 로직
-
 placeholder = st.empty()
 if (st.session_state.raw_data is None or st.session_state.raw_data.empty) and not search_submit:
     with placeholder.container():
@@ -724,10 +720,10 @@ with placeholder.container():
             p_id = platform_map_to_id.get(platform_choice, "all")
 
             # 공유용 URL 생성
-            # share_url = f"https://careerup.streamlit.app/?kw={encoded_kw}&platform={p_id}&rate={min_rating}&row={row_count}"
+            share_url = f"https://careerup.streamlit.app/?kw={encoded_kw}&platform={p_id}&rate={min_rating}&row={row_count}"
 
             # (로컬용 주소)
-            share_url = f"http://localhost:8501/?kw={encoded_kw}&platform={p_id}&rate={min_rating}&row={row_count}"
+            # share_url = f"http://localhost:8501/?kw={encoded_kw}&platform={p_id}&rate={min_rating}&row={row_count}"
 
             st.caption("🔗 공유 하기 (아래 링크 오른쪽 끝 클릭시 복사)")
             st.code(share_url, language=None)

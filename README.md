@@ -1,6 +1,11 @@
 # CareerUp Intelligence Tool:
+<<<<<<< HEAD
 🚀[사람인 & 원티드 공고 x 잡플래닛 평점] 구직 의사결정 지원 도구 
 - 멀티 플랫폼 채용 공고 정보와 기업 평점을 실시간으로 결합하여, 지원자가 기업의 내실을 한눈에 파악할 수 있도록 돕는 지능형 검색 엔진입니다.
+=======
+🚀[사람인 공고 x 잡플래닛 평점] 구직 의사결정 지원 도구 
+- 채용 공고 정보와 기업 평점을 실시간으로 결합하여, 지원자가 기업의 내실을 한눈에 파악할 수 있도록 돕는 지능형 검색 엔진입니다.
+>>>>>>> 9297d36ecf89c2e6daf2847741a34acc72a1abc8
 
 🛠️ Logic & Tech Stack
 Core Logic
@@ -39,4 +44,8 @@ Core Logic
 pip install -r requirements.txt
 
 # 엔진 실행
+<<<<<<< HEAD
 streamlit run main.py
+=======
+streamlit run main.py
+>>>>>>> 9297d36ecf89c2e6daf2847741a34acc72a1abc8
