@@ -625,6 +625,17 @@ with placeholder.container():
         if 'excluded_links' in st.session_state and not df.empty:
             df = df[~df['링크'].isin(st.session_state.excluded_links)]
         
+        # 🎯 [추가] 플랫폼 실시간 필터링 로직
+        # 사이드바에서 선택한 platform_choice에 따라 '표시할 데이터'만 남기기
+        if not df.empty:
+            if "사람인 (Saramin)" in platform_choice:
+                # 데이터프레임의 '플랫폼' 컬럼 값이 '사람인'인 것만 추출
+                df = df[df['플랫폼'].str.contains("사람인", na=False)]
+            elif "원티드 (Wanted)" in platform_choice:
+                # 데이터프레임의 '플랫폼' 컬럼 값이 '원티드'인 것만 추출
+                df = df[df['플랫폼'].str.contains("원티드", na=False)]
+            # "전체 통합 검색"일 때는 필터링을 건너뛰어 전체를 보여줌
+
         # 평점 및 정보없음 필터링
         if not df.empty:
             if include_no_info:
