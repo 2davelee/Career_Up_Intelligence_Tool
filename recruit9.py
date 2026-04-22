@@ -118,6 +118,115 @@ def create_pdf(df):
     insert_watermark(pdf)
     return bytes(pdf.output())
 
+def create_strategy_pdf(report_content, company_name):
+    pdf = FPDF()
+    pdf.alias_nb_pages()
+    
+    # 1. 폰트 설정 (이름 통일)
+    font_name = "Nanum"
+    font_path = "NanumGothic.ttf"
+    if os.path.exists(font_path):
+        pdf.add_font(font_name, style="", fname=font_path)
+        pdf.add_font(font_name, style="B", fname=font_path)
+        base_font = font_name
+    else:
+        return bytes(pdf.output())
+
+    pdf.add_page()
+    
+    # --- [Header] ---
+    pdf.set_fill_color(0, 77, 64) 
+    pdf.rect(0, 0, 210, 40, 'F')
+    pdf.set_text_color(255, 255, 255)
+    pdf.set_y(12)
+    pdf.set_font(base_font, style="B", size=22)
+    pdf.cell(0, 10, text="AI 채용 합격 전략 리포트", new_x=XPos.LMARGIN, new_y=YPos.NEXT, align='C')
+    pdf.set_font(base_font, style="", size=12)
+    pdf.cell(0, 10, text=f"Target Company: {company_name}", new_x=XPos.LMARGIN, new_y=YPos.NEXT, align='C')
+    pdf.ln(15) 
+
+    # --- [Content Processing] ---
+    pdf.set_text_color(40, 40, 40)
+    lines = report_content.split('\n')
+    
+    for line in lines:
+        if not line.strip():
+            pdf.ln(4)
+            continue
+            
+        if pdf.get_y() > 260:
+            insert_watermark(pdf)
+            pdf.add_page()
+            pdf.ln(10)
+
+        # 뎁스 파악
+        indent_size = len(line) - len(line.lstrip())
+        depth = indent_size // 2
+        
+        # 1. 대섹션 (###) - 기호 완벽 제거 및 디자인 복구
+        if line.strip().startswith('###'):
+            # ### 제거 및 앞뒤 공백 정리
+            clean_title = line.replace('###', '').replace('**', '').strip()
+            
+            pdf.ln(5)
+            pdf.set_fill_color(240, 248, 245)
+            pdf.set_draw_color(0, 77, 64) # 테두리 진하게 복구
+            pdf.set_line_width(0.6) # 테두리 두께 강화
+            
+            curr_y = pdf.get_y()
+            pdf.rect(10, curr_y, 190, 12, 'FD')
+            
+            pdf.set_font(base_font, style="B", size=15) # 대제목 폰트 크기 및 진하게 복구
+            pdf.set_text_color(0, 77, 64)
+            pdf.set_xy(15, curr_y + 3)
+            pdf.cell(0, 6, text=clean_title, new_x=XPos.LMARGIN, new_y=YPos.NEXT)
+            pdf.ln(7)
+            continue
+
+        # 2. 데이터 보존형 기호 정리 (숫자 보존)
+        # 텍스트 내의 ** 제거
+        text_only = line.replace('**', '').strip()
+        # 문장 앞의 불렛 기호(*, -)만 제거하고 숫자는 남겨두는 정규식으로 수정
+        display_text = re.sub(r'^[*\-\s]+', '', text_only) 
+
+        # 3. 계층별 출력 로직
+        if depth == 0:
+            # 중간 제목: 불렛(•), 진하게, 13pt
+            pdf.set_font(base_font, style="B", size=13)
+            pdf.set_text_color(20, 60, 50)
+            prefix = "• "
+            base_x = 12
+        else:
+            # 상세 내용: 대시(-), 일반, 11pt
+            pdf.set_font(base_font, style="", size=11)
+            pdf.set_text_color(60, 60, 60)
+            prefix = "- "
+            base_x = 12 + (depth * 8)
+
+        # 출력 위치 설정
+        pdf.set_x(base_x)
+        prefix_w = pdf.get_string_width(prefix)
+        pdf.write(7, prefix)
+        
+        text_start_x = base_x + prefix_w
+        pdf.set_xy(text_start_x, pdf.get_y())
+        
+        # 콜론(:) 기준 소제목 강조 (중간 제목용)
+        if ":" in display_text and depth == 0:
+            parts = display_text.split(":", 1)
+            pdf.set_font(base_font, style="B", size=13)
+            pdf.write(7, parts[0] + ":")
+            pdf.set_font(base_font, style="", size=11)
+            pdf.multi_cell(195 - (text_start_x + pdf.get_string_width(parts[0])), 7, text=parts[1])
+        else:
+            pdf.multi_cell(195 - text_start_x, 7, text=display_text)
+            
+        pdf.ln(1)
+
+    insert_watermark(pdf)
+    return bytes(pdf.output())
+
+
 # 워터마크 삽입용 헬퍼 함수
 def insert_watermark(pdf):
     # 현재 위치 저장
@@ -880,47 +989,84 @@ with placeholder.container():
                         st.markdown(f"{row['공고제목']}")
                         st.caption(row['지원자격'])
                         # --- [핵심] AI 전략 리포트 Expander ---
-                        # 개별 공고마다 고유한 key가 필요하므로 idx를 활용합니다.
+                        # 개별 공고마다 고유한 key가 필요하므로 idx를 활용
+                        # 1. 각 공고마다 고유한 저장 키 생성 (중복 방지)
+                        report_key = f"ai_report_{idx}"
                         with st.expander("✨ AI 합격 전략 리포트"):
-                            # 1. 사용자가 버튼을 누르면
-                            if st.button("AI 전략 도출 🚀", key=f"ai_btn_{idx}"):
+                            # [조건] 버튼을 눌렀거나, 이미 이전에 분석해서 메모리(session_state)에 결과가 있는 경우
+                            if st.button("AI 전략 도출 🚀", key=f"ai_btn_{idx}") or report_key in st.session_state:
                                 
-                                with st.spinner("🔎 상세 공고 내용을 읽어오는 중입니다..."):
-                                    # [선언 위치] 여기서 변수를 선언하고 크롤링 함수를 실행
-                                    if row['플랫폼'] == '사람인':
-                                        crawled_result = scrape_saramin_real_content(row['링크'], row['회사명'])
-                                    elif row['플랫폼'] == '원티드':
-                                        crawled_result = scrape_wanted_full_content(row['링크'])
+                                # 만약 메모리(session_state)에 데이터가 없다면 -> 처음 버튼을 누른 상태
+                                if report_key not in st.session_state:
+                                    with st.spinner("🔎 상세 공고 내용을 읽고 전략을 짜는 중입니다..."):
+                                        # 크롤링 로직 시작
+                                        if row['플랫폼'] == '사람인':
+                                            crawled_result = scrape_saramin_real_content(row['링크'], row['회사명'])
+                                        elif row['플랫폼'] == '원티드':
+                                            crawled_result = scrape_wanted_full_content(row['링크'])
+                                        # 2. 유효성 검사 (핵심 필터!)
+                                        # 텍스트가 없거나 너무 짧으면(예: 100자 미만) 이미지 공고일 확률이 높음
+                                        if not crawled_result or len(crawled_result.strip()) < 100:
+                                            error_msg = "⚠️ 이 공고는 이미지로 구성되어 있어 내용을 읽을 수 없습니다. 상세 내용은 공고 링크를 직접 확인해 주세요!"
+                                            st.session_state[report_key] = error_msg
+                                        else:
+                                            # 3. 데이터가 충분할 때만 AI 호출
+                                            report_content = analyze_with_llama(crawled_result)
+                                            st.session_state[report_key] = report_content.strip()
 
-                                    else:
-                                        crawled_result = "지원하지 않는 플랫폼입니다."
+                                # 이제 메모리에 저장된 데이터를 가져옴 (AI 서버 안 돌림)
+                                current_report = st.session_state[report_key]
+                                
+                                # 에러 메시지인 경우와 정상 리포트인 경우를 구분해서 출력
+                                if current_report.startswith("⚠️"):
+                                    st.warning(current_report)
+                                else:
+                                    # 3. 최종 출력
+                                    st.success(current_report, icon=None)
 
-                                    # 2. 수집된 데이터를 라마 분석 함수에 파라미터로 전달
-                                    if crawled_result and "실패" not in crawled_result:
-                                        report_content = analyze_with_llama(crawled_result)
+                                    # 4. 다운로드 버튼 (메모리에 있는 데이터를 재활용)
+                                    pdf_data = create_strategy_pdf(current_report, row['회사명'])
+                                    st.download_button(
+                                        label="📑 AI 전략 리포트 PDF 다운로드",
+                                        data=bytes(pdf_data),
+                                        file_name=f"AI_Strategy_{row['회사명']}_{now}.pdf",
+                                        mime="application/pdf",
+                                        key=f"dl_btn_pdf{idx}",
+                                        use_container_width=True
+                                    )
+                                    st.download_button(
+                                        label="📝 텍스트(txt)파일로 저장",
+                                        data=current_report.encode('utf-8-sig'), # 아이폰/윈도우 한글 깨짐 방지
+                                        file_name=f"AI_Strategy_{row['회사명']}_{now}.txt",
+                                        mime="text/plain",
+                                        key=f"dl_btn_txt{idx}",
+                                        use_container_width=True # 모바일에서도 시원하게 꽉 찬 버튼
+                                    )
+
+                        # with st.expander("✨ AI 합격 전략 리포트"):
+                        #     # 1. 사용자가 버튼을 누르면
+                        #     if st.button("AI 전략 도출 🚀", key=f"ai_btn_{idx}"):
+                                
+                        #         with st.spinner("🔎 상세 공고 내용을 읽고 전략을 짜는 중입니다..."):
+                        #             # [선언 위치] 여기서 변수를 선언하고 크롤링 함수를 실행
+                        #             if row['플랫폼'] == '사람인':
+                        #                 crawled_result = scrape_saramin_real_content(row['링크'], row['회사명'])
+                        #             elif row['플랫폼'] == '원티드':
+                        #                 crawled_result = scrape_wanted_full_content(row['링크'])
+
+                        #             else:
+                        #                 crawled_result = "지원하지 않는 플랫폼입니다."
+
+                        #             # 2. 수집된 데이터를 라마 분석 함수에 파라미터로 전달
+                        #             if crawled_result and "실패" not in crawled_result:
+                        #                 report_content = analyze_with_llama(crawled_result)
                                         
-                                        # 3. 최종 출력
-                                        st.success(report_content.strip(), icon=None)
-                                        # with st.container:
-                                        #     # 앞뒤 불필요한 공백을 완전히 제거한 후 마크다운 출력
-                                        #     st.markdown(report_content.strip())
-                                        #PDF 생성 시 필요한 데이터 준비
-                                        txt_data = report_content.strip()
-
-                                        #다운로드 버튼 배치
-                                        st.download_button(
-                                            label="리포트 파일로 저장하기 📥",
-                                            data=txt_data.encode('utf-8-sig'),
-                                            file_name=f"AI_Strategy_{row['회사명']}_{now}.txt",
-                                            mime="text/plain",
-                                            key=f"dl_btn_{idx}",
-                                            use_container_width=True
-                                        )
-
+                        #                 # 3. 최종 출력
+                        #                 st.success(report_content.strip(), icon=None)
                                         # st_copy_to_clipboard(report_content.strip(), before_copy_label="📋 리포트 전체 복사하기", after_copy_label="✅ 복사 완료!")
 
-                                    else:
-                                        st.error("세부 내용을 가져오지 못했습니다. 상세공고 링크를 참고하세요.")
+                            # else:
+                            #     st.error("세부 내용을 가져오지 못했습니다. 상세공고 링크를 참고하세요.")
                     with c4:
                         b1, b2 = st.columns(2)
                         with b1:
@@ -933,10 +1079,6 @@ with placeholder.container():
                                 st.session_state.raw_data = st.session_state.raw_data[st.session_state.raw_data.index != idx]
                                 st.rerun()
                     
-                    # if show_detail:
-                    #     with st.expander("📄 상세 지원자격 및 공고 링크", expanded=True):
-                    #         st.write(row['지원자격'])
-                    #         st.link_button("공고 원문 페이지로 이동 🔗", row['링크'], use_container_width=True)
                     st.divider()    
 
             # UI 하단 액션 섹션
