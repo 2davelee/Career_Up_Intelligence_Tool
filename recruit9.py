@@ -842,7 +842,7 @@ if search_submit or (keyword and keyword != st.session_state.get('last_kw', ''))
         # [추가 1] 검색 시작하자마자 현재 키워드를 '마지막 키워드'로 박제 (중복 실행 방지)
         st.session_state.last_kw = keyword
         
-        with st.spinner(f"🌠데이브 엔진이 **'{keyword}'** 공고를 정밀 스캔 중..."):
+        with st.spinner(f"📡데이브 엔진이 **'{keyword}'** 공고를 정밀 스캔 중..."):
             if platform_choice == "사람인 (Saramin)":
                 res_df = get_saramin_jobs(keyword, row_count)
             elif platform_choice == "원티드 (Wanted)":
