@@ -878,7 +878,7 @@ with placeholder.container():
                             # 1. 사용자가 버튼을 누르면
                             if st.button("AI 전략 도출 🚀", key=f"ai_btn_{idx}"):
                                 
-                                with st.spinner("🔎📄 상세 공고 내용을 읽어오는 중입니다..."):
+                                with st.spinner("🔎 상세 공고 내용을 읽어오는 중입니다..."):
                                     # [선언 위치] 여기서 변수를 선언하고 크롤링 함수를 실행
                                     if row['플랫폼'] == '사람인':
                                         crawled_result = scrape_saramin_real_content(row['링크'], row['회사명'])
