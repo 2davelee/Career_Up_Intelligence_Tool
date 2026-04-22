@@ -140,7 +140,7 @@ def create_strategy_pdf(report_content, company_name):
     pdf.set_text_color(255, 255, 255)
     pdf.set_y(12)
     pdf.set_font(base_font, style="B", size=22)
-    pdf.cell(0, 10, text="AI 채용 합격 전략 리포트", new_x=XPos.LMARGIN, new_y=YPos.NEXT, align='C')
+    pdf.cell(0, 10, text="[CareerUp] AI 채용 합격 전략 리포트", new_x=XPos.LMARGIN, new_y=YPos.NEXT, align='C')
     pdf.set_font(base_font, style="", size=12)
     pdf.cell(0, 10, text=f"Target Company: {company_name}", new_x=XPos.LMARGIN, new_y=YPos.NEXT, align='C')
     pdf.ln(15) 
