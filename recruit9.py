@@ -11,6 +11,8 @@ from fpdf.enums import XPos, YPos
 import os
 import datetime
 import pytz
+from openai import OpenAI
+from st_copy_to_clipboard import st_copy_to_clipboard
 import logging
 logging.getLogger("fpdf.fonts").setLevel(logging.ERROR)
 
@@ -393,6 +395,192 @@ def get_wanted_jobs(keyword, limit=20):
 #         return pd.DataFrame()
 #     except: return pd.DataFrame()
 
+def scrape_saramin_real_content(url, company_name):
+    # 1. URL에서 공고 고유 번호(rec_idx) 추출
+    match = re.search(r"rec_idx=(\d+)", url)
+    if not match:
+        return "❌ 공고 번호를 찾을 수 없는 URL입니다."
+    
+    rec_idx = match.group(1)
+    
+    # 2. 사람인의 '순수 본문 호출' 주소로 타겟팅 변경
+    # 이 주소는 껍데기 없이 본문 내용만 반환하는 경우가 많습니다.
+    target_url = f"https://www.saramin.co.kr/zf_user/jobs/relay/view-detail?rec_idx={rec_idx}"
+    
+    headers = {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36",
+        "Referer": url
+    }
+    
+    try:
+        response = requests.get(target_url, headers=headers, timeout=10)
+        response.encoding = 'utf-8' # 본문은 보통 utf-8
+        soup = BeautifulSoup(response.text, 'html.parser')
+
+        # 본문 영역 선택 (사람인 본문 전용 태그들)
+        # 본문 전용 호출 페이지에서는 구조가 더 단순해집니다.
+        content_section = soup.select_one(".user_content") or \
+                          soup.select_one(".template_area") or \
+                          soup.select_one(".jv_detail") or \
+                          soup # 정 안되면 전체
+
+        # 불필요한 UI 요소(닫기 버튼, 가이드 문구 등) 제거
+        for s in content_section(['script', 'style', 'button', '.guide_area']):
+            s.decompose()
+
+        text = content_section.get_text(separator="\n")
+        
+        # 4. 정제: 아까 보신 '로그인', '메뉴' 같은 단어가 포함된 줄은 삭제
+        lines = text.splitlines()
+        garbage_keywords = ['로그인', '회원가입', '본문 바로가기', '검색어입력', '닫기', '개인정보']
+        
+        clean_lines = [f"### [회사명] {company_name} ###\n"]
+        for line in lines:
+            line = line.strip()
+            # 쓰레기 키워드가 포함되지 않고, 실제 내용이 있는 줄만 선택
+            if line and not any(kw in line for kw in garbage_keywords):
+                clean_lines.append(line)
+        
+        return "\n".join(clean_lines)
+
+    except Exception as e:
+        return f"🚨 에러 발생: {e}"
+
+def scrape_wanted_full_content(url):
+    headers = {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36",
+        "Accept-Language": "ko-KR,ko;q=0.9,en-US;q=0.8,en;q=0.7",
+        "Referer": "https://www.wanted.co.kr/"
+    }
+    
+    try:
+        response = requests.get(url, headers=headers, timeout=10)
+        response.raise_for_status()
+        soup = BeautifulSoup(response.text, 'html.parser')
+
+        # 1. 기본 정보 추출 (회사명, 포지션)
+        company_tag = soup.find('a', class_=re.compile(r'Company__Link'))
+        company = company_tag.get('data-company-name') if company_tag else "정보없음"
+        
+        position_tag = soup.find('h1')
+        position = position_tag.get_text(strip=True) if position_tag else "정보없음"
+
+        # --- [추가 코드: 근무지 및 경력 추출] ---
+        # JobHeader 영역에서 Info 클래스를 가진 모든 span을 찾음.
+        info_tags = soup.find_all('span', class_=re.compile(r'JobHeader__Tools__Company__Info'))
+        location = "정보없음"
+        experience = "정보없음"
+        
+        if len(info_tags) >= 2:
+            location = info_tags[0].get_text(strip=True)     # 첫 번째 span: 지역 (서울 강남구)
+            experience = info_tags[1].get_text(strip=True)   # 두 번째 span: 경력 (경력 1-5년)
+        # ---------------------------------------------
+
+        # 2. 본문 내용 담을 딕셔너리
+        content_data = {}
+
+        # ---------------------------------------------------------
+        # [A] 포지션 상세 (h2 태그 기반 추출)
+        # ---------------------------------------------------------
+        detail_header = soup.find('h2', string=lambda x: x and '포지션 상세' in x)
+        if detail_header:
+            # h2 태그와 같은 레벨 혹은 부모 안에 있는 상세 내용(span) 탐색
+            parent_div = detail_header.find_parent('article') or detail_header.parent
+            detail_content = parent_div.find('span', class_='wds-h4ga6o')
+            if detail_content:
+                content_data["포지션 상세"] = detail_content.get_text(separator="\n", strip=True)
+
+        # ---------------------------------------------------------
+        # [B] 주요업무, 자격요건, 우대사항 등 (h3 태그 기반 추출)
+        # ---------------------------------------------------------
+        sections = soup.find_all('div', class_=re.compile(r'JobDescription_JobDescription__paragraph'))
+        for section in sections:
+            header = section.find('h3')
+            content = section.find('span', class_='wds-h4ga6o')
+            
+            if header and content:
+                header_text = header.get_text(strip=True)
+                content_text = content.get_text(separator="\n", strip=True)
+                content_data[header_text] = content_text
+
+        # 3. 결과 텍스트 조립
+        if not content_data:
+            return "❌ 데이터를 추출하지 못했습니다. 구조 확인이 필요합니다."
+
+        result_lines = [f"### [{company}] {position} ###",
+                f"지역: {location}",
+                f"경력조건: {experience}\n"]
+        
+        # '포지션 상세'를 가장 먼저 배치하고 나머지를 순차적으로 추가
+        priority_key = "포지션 상세"
+        if priority_key in content_data:
+            result_lines.append(f"[{priority_key}]\n{content_data[priority_key]}\n")
+        
+        for title, body in content_data.items():
+            if title != priority_key: # 이미 넣은 건 제외
+                result_lines.append(f"[{title}]\n{body}\n")
+            
+        return "\n".join(result_lines)
+
+    except Exception as e:
+        return f"🚨 에러 발생: {e}"
+
+# Groq: OpenAI SDK
+# secrets.toml에서 키 가져오기
+try:
+    groq_key = st.secrets["GROQ_API_KEY"]
+except KeyError:
+    st.error("API 키가 설정되지 않았습니다. 설정을 확인해주세요.")
+    st.stop()
+
+# 클라이언트 설정
+client = OpenAI(
+    api_key=groq_key,
+    base_url="https://api.groq.com/openai/v1"
+)
+def analyze_with_llama(crawled_result):
+    analysis_prompt = f"""
+    당신은 전략 컨설팅 펌 출신의 '수석 리쿠르팅 어드바이저'입니다. 
+    제공된 [채용 공고]를 분석하여 객관적이고 논리적인 '지원 전략 보고서'를 작성하세요.
+
+    ###1. 공고 기초 정보 
+    - **공고 기초 정보:** 회사명, 공고 제목, 근무지, 주요 자격 요건, 제출 기한
+    ### 2. 기업 분석 (Market & Biz Context)
+    - **비즈니스 모델:** 이 회사가 무엇으로 돈을 벌고 있으며, 현재 어느 성장 단계(투자/확장/안정)에 있는지 요약하세요.
+    - **채용 배경(추론):** 공고의 내용을 볼 때, 현재 이 팀이 해결해야 할 '가장 시급한 문제'는 무엇인가?
+
+    ### 3. 직무 역량 우선순위 (Priority Matrix)
+    - **필수 기술/스킬 (Must):** 실무에서 가장 높은 빈도로 사용될 핵심 역량 3가지를 선정하세요.
+    - **차별화 포인트 (Nice-to-have):** 수많은 지원자 중 '최종 합격자'를 결정지을 결정적 한 끗(우대사항 기반)은 무엇인가?
+
+    ### 4. 합격 필살기 가이드 (Action Plan)
+    - **자소서 강조점:** 이 직무에서 가장 높게 평가할 '성과 지표'나 '경험의 키워드'를 제시하세요.
+    - **면접 예상 질문:** 이 공고의 '자격요건'을 근거로 면접관이 던질 가장 날카로운 질문 하나를 뽑으세요.
+    - **면접 예상 답변:** 위에서 뽑은 질문에 대해 구체적인 모범 답안을 문장형으로 답변하세요.
+
+    ---
+    [출력 규칙] 표 금지, 불렛포인트 사용, 한자(중국의 문자; 번체자, 간체자),일본어(일본의 문자; 히라가나, 카타카나) 일체 사용(표기)금지.
+    ***"답변 시 공고문의 텍스트를 그대로 복사하지 말고, 수석 컨설턴트의 시각에서 '비즈니스 언어'로 재해석(Paraphrasing)해서 작성할 것. 특히 '필살기 가이드'에는 지원자가 면접관을 압도할 수 있는 구체적인 기술적 키워드(예: RAG 고도화, MLOps 등)를 추론해서 포함시켜라."***
+    ***"단순 요약하지 말고, 공고에 없는 내용을 너의 지식을 바탕으로 창의적으로 추론해서 덧붙일 것."***
+    ***"시간이 더 걸리더라도 독하게, 더 깊게 분석할 것."***
+    ***"자연스러운 한국어 구어체(1번 항목의 기초정보에 한해서만 문장형이 아닌 깔끔히 표시)를 사용할 것"***
+    ***"해당 업종만의 배경지식(업계 컨텍스트)을 활용해서 설명할 것."***
+    ***"신입, 중간관리자, 시니어 등 각 자격요건(연차)에 맞게 강조점을 조정하여 맞춤형으로 제시할 것."***
+    [채용 공고 데이터]
+    {crawled_result}
+    """
+
+    # 모델명은 llama-3.3-70b-versatile.
+    response = client.chat.completions.create(
+        model="llama-3.3-70b-versatile", 
+        messages=[
+            {"role": "system", "content": analysis_prompt},
+            {"role": "user", "content": f"다음 공고를 분석해줘: {crawled_result}"}
+        ],
+        temperature=0.5 # 일관된 분석을 위해 약간 낮게 설정
+    )
+    return response.choices[0].message.content
+
 # --- 2. Streamlit UI 및 상태 관리 (상태 유지용) ---
 
 st.set_page_config(page_title="Dave's Verified Hub", layout="wide")
@@ -453,8 +641,8 @@ if get_kw:
 #         auto_search = True
 
 try:
-    # 주소창에 'row'가 있으면 그 값을, 없으면 기본값 15를 가져옴
-    get_row = int(params.get("row", 15))
+    # 주소창에 'row'가 있으면 그 값을, 없으면 기본값 10를 가져옴
+    get_row = int(params.get("row", 10))
 except:
     get_row = 15
 
@@ -538,7 +726,7 @@ if search_submit or (keyword and keyword != st.session_state.get('last_kw', ''))
         # [추가 1] 검색 시작하자마자 현재 키워드를 '마지막 키워드'로 박제 (중복 실행 방지)
         st.session_state.last_kw = keyword
         
-        with st.spinner(f"🌠데이브 엔진이 **{keyword}** 공고를 정밀 스캔 중..."):
+        with st.spinner(f"🌠데이브 엔진이 **'{keyword}'** 공고를 정밀 스캔 중..."):
             if platform_choice == "사람인 (Saramin)":
                 res_df = get_saramin_jobs(keyword, row_count)
             elif platform_choice == "원티드 (Wanted)":
@@ -559,6 +747,8 @@ if search_submit or (keyword and keyword != st.session_state.get('last_kw', ''))
         st.rerun() 
     else:
         st.error("키워드를 입력해 주세요.")
+
+
 # if search_submit or (keyword and keyword != st.session_state.get('last_kw', '')) or auto_search:
 #     if keyword:
 #         with st.spinner(f"데이브 엔진이 {keyword} 공고를 정밀 스캔 중..."):
@@ -609,7 +799,7 @@ if search_submit or (keyword and keyword != st.session_state.get('last_kw', ''))
 placeholder = st.empty()
 if (st.session_state.raw_data is None or st.session_state.raw_data.empty) and not search_submit:
     with placeholder.container():
-        st.info("**사이드바**(**>>**)에서 세부설정 후, 검색창에 키워드를 입력하고 [**엔진 가동**]\n\n💡 평점과 링크를 정밀 분석하느라 검색 시간이 조금 소요됩니다.")
+        st.info("**사이드바**(**>>**)에서 플랫폼 선택 및 평점 세부설정 후, 검색창에 키워드를 입력하고 [**엔진 가동**]\n\n💡 평점과 링크를 정밀 분석하느라 검색 시간이 조금 소요됩니다.")
         # st.caption("Produced by Dave | CareerUp Intelligence Tool (1st Edition)")
 
 with placeholder.container():
@@ -662,6 +852,10 @@ with placeholder.container():
             with h4: st.markdown(f"{h_style}⚙️ 상세링크 및 제외</p>", unsafe_allow_html=True)
             st.markdown('<hr style="border: 1px solid #31333F; margin-top: 5px; margin-bottom: 15px;">', unsafe_allow_html=True)
 
+            # 현재 시간 가져오기 (예: 2026-04-04 02:42:25)
+            KST = pytz.timezone('Asia/Seoul')
+            now_kst = datetime.datetime.now(KST) # 서버 시간이 아닌 한국 시간으로 가져오기
+            now = now_kst.strftime("%Y%m%d_%H%M")
             # --- 리스트 출력 (for 루프) ---
             for idx, row in filtered_df.iterrows():
                 unique_key = f"{keyword}_{idx}_{row['회사명']}"
@@ -678,6 +872,46 @@ with placeholder.container():
                     with c3:
                         st.markdown(f"{row['공고제목']}")
                         st.caption(row['지원자격'])
+                        # --- [핵심] AI 전략 리포트 Expander ---
+                        # 개별 공고마다 고유한 key가 필요하므로 idx를 활용합니다.
+                        with st.expander("✨ AI 합격 전략 리포트"):
+                            # 1. 사용자가 버튼을 누르면
+                            if st.button("AI 합격 전략 도출 🚀", key=f"ai_btn_{idx}"):
+                                
+                                with st.spinner("🤖상세 공고 내용을 읽어오는 중입니다..."):
+                                    # [선언 위치] 여기서 변수를 선언하고 크롤링 함수를 실행
+                                    if row['플랫폼'] == '사람인':
+                                        crawled_result = scrape_saramin_real_content(row['링크'], row['회사명'])
+                                    elif row['플랫폼'] == '원티드':
+                                        crawled_result = scrape_wanted_full_content(row['링크'])
+
+                                    else:
+                                        crawled_result = "지원하지 않는 플랫폼입니다."
+
+                                    # 2. 수집된 데이터를 라마 분석 함수에 파라미터로 전달
+                                    if crawled_result and "실패" not in crawled_result:
+                                        report_content = analyze_with_llama(crawled_result)
+                                        
+                                        # 3. 최종 출력
+                                        st.success(report_content.strip(), icon=None)
+                                        # with st.container:
+                                        #     # 앞뒤 불필요한 공백을 완전히 제거한 후 마크다운 출력
+                                        #     st.markdown(report_content.strip())
+                                        # PDF 생성 시 필요한 데이터 준비
+                                        # txt_data = report_content.strip()
+
+                                        # # 다운로드 버튼 배치
+                                        # st.download_button(
+                                        #     label="리포트 TXT 다운로드 📥",
+                                        #     data=txt_data, # 우선 텍스트(txt) 파일로 저장하는 방식 (가장 안전)
+                                        #     file_name=f"AI_Strategy_{row['회사명']}_{now}.txt",
+                                        #     mime="text/plain",
+                                        #     key=f"dl_btn_{idx}"
+                                        # )
+                                        st_copy_to_clipboard(report_content.strip(), before_copy_label="📋 리포트 전체 복사하기", after_copy_label="✅ 복사 완료!")
+
+                                    else:
+                                        st.error("세부 내용을 가져오지 못했습니다. 옆의 상세공고 링크를 참고하세요.")
                     with c4:
                         b1, b2 = st.columns(2)
                         with b1:
@@ -697,11 +931,6 @@ with placeholder.container():
                     st.divider()    
 
             # UI 하단 액션 섹션
-            # 현재 시간 가져오기 (예: 2026-04-04 02:42:25)
-            KST = pytz.timezone('Asia/Seoul')
-            now_kst = datetime.datetime.now(KST) # 서버 시간이 아닌 한국 시간으로 가져오기
-            now = now_kst.strftime("%Y%m%d_%H%M")
-            
             # PDF 다운로드 (한글 폰트 세팅 전에는 깨질 수 있음)
             if not filtered_df.empty:
                 pdf_data = create_pdf(filtered_df)
