@@ -900,7 +900,7 @@ with placeholder.container():
                                         report_content = analyze_with_llama(crawled_result)
                                         
                                         # 3. 최종 출력
-                                        # st.success(report_content.strip(), icon=None)
+                                        st.success(report_content.strip(), icon=None)
                                         # with st.container:
                                         #     # 앞뒤 불필요한 공백을 완전히 제거한 후 마크다운 출력
                                         #     st.markdown(report_content.strip())
@@ -910,15 +910,14 @@ with placeholder.container():
                                         #다운로드 버튼 배치
                                         st.download_button(
                                             label="리포트 파일로 저장하기 📥",
-                                            data=txt_data.encode('utf-8-sig'), # 우선 텍스트(txt) 파일로 저장하는 방식 (가장 안전)
+                                            data=txt_data.encode('utf-8-sig'),
                                             file_name=f"AI_Strategy_{row['회사명']}_{now}.txt",
                                             mime="text/plain",
                                             key=f"dl_btn_{idx}",
                                             use_container_width=True
                                         )
-                                        st.text_area("리포트 복사", report_content.strip())
-                                        st_copy_to_clipboard(report_content.strip())
-                                        st_copy_to_clipboard(report_content.strip(), before_copy_label="📋 리포트 전체 복사하기", after_copy_label="✅ 복사 완료!")
+
+                                        # st_copy_to_clipboard(report_content.strip(), before_copy_label="📋 리포트 전체 복사하기", after_copy_label="✅ 복사 완료!")
 
                                     else:
                                         st.error("세부 내용을 가져오지 못했습니다. 상세공고 링크를 참고하세요.")
@@ -945,7 +944,7 @@ with placeholder.container():
             if not filtered_df.empty:
                 pdf_data = create_pdf(filtered_df)
                 st.download_button(
-                    label="📄 검증 완료된 클린 PDF 리포트 다운로드",
+                    label="📄 검증 완료된 클린 PDF 다운로드",
                     data=bytes(pdf_data),
                     file_name=f"CareerUp_Report_{keyword}_{now}.pdf",
                     mime="application/pdf",
