@@ -32,6 +32,7 @@ Core Logic
 
 🤖 Reliability (Zero-Downtime)
 - **Server Poking**: Streamlit Cloud의 휴면 모드를 방지하기 위해 GitHub Actions를 통해 8시간 주기로 세션을 활성화.
+- **Error Resiliency**: AI Rate Limit 발생 시 사용자에게 직관적인 안내를 제공하고, 재시도를 유도하는 예외 처리 프로세스 구축.
 
 👨‍💻 Developer: Dave
 - **Focus**: 데이터 수집부터 AI 기반 요약까지, 의사결정 비용을 획기적으로 줄이는 시스템을 설계합니다.
