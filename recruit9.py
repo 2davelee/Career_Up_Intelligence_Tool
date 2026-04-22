@@ -570,15 +570,22 @@ def analyze_with_llama(crawled_result):
     {crawled_result}
     """
 
-    # 모델명은 llama-3.3-70b-versatile.
-    response = client.chat.completions.create(
-        model="llama-3.3-70b-versatile", 
-        messages=[
-            {"role": "system", "content": analysis_prompt},
-            {"role": "user", "content": f"다음 공고를 분석해줘: {crawled_result}"}
-        ],
-        temperature=0.5 # 일관된 분석을 위해 약간 낮게 설정
+    try: response = client.chat.completions.create(
+    # model="llama-3.3-70b-versatile", 
+    model="meta-llama/llama-4-scout-17b-16e-instruct", 
+
+    messages=[
+        {"role": "system", "content": analysis_prompt},
+        {"role": "user", "content": f"다음 공고를 분석해줘: {crawled_result}"}
+    ],
+    temperature=0.5 # 일관된 분석을 위해 약간 낮게 설정
     )
+    except Exception as e:
+        if "rate_limit_exceeded" in str(e).lower():
+            st.warning("⚠️ AI 분석 요청이 너무 많습니다. 1분 후 다시 시도해주세요! (무료 API 할당량 제한)")
+        else:
+            st.error("AI 전략 도출 중 오류가 발생했습니다.")
+
     return response.choices[0].message.content
 
 # --- 2. Streamlit UI 및 상태 관리 (상태 유지용) ---
@@ -911,7 +918,7 @@ with placeholder.container():
                                         st_copy_to_clipboard(report_content.strip(), before_copy_label="📋 리포트 전체 복사하기", after_copy_label="✅ 복사 완료!")
 
                                     else:
-                                        st.error("세부 내용을 가져오지 못했습니다. 옆의 상세공고 링크를 참고하세요.")
+                                        st.error("세부 내용을 가져오지 못했습니다. 상세공고 링크를 참고하세요.")
                     with c4:
                         b1, b2 = st.columns(2)
                         with b1:
