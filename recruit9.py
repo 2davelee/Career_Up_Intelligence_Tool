@@ -611,7 +611,6 @@ st.markdown("""
     .rating-link:hover .animated-star { animation: starPulse 0.8s infinite; display: inline-block; }
     .no-rating { color: #ccc; font-size: 0.85em; }
     .delete-btn { color: white; background-color: #ff4b4b; border-radius: 5px; }
-    .font-family: "Segoe UI Emoji", "Apple Color Emoji", sans-serif;
 </style>
 """, unsafe_allow_html=True)
 
@@ -879,7 +878,7 @@ with placeholder.container():
                             # 1. 사용자가 버튼을 누르면
                             if st.button("AI 전략 도출 🚀", key=f"ai_btn_{idx}"):
                                 
-                                with st.spinner("🤖 상세 공고 내용을 읽어오는 중입니다..."):
+                                with st.spinner("🔎📄 상세 공고 내용을 읽어오는 중입니다..."):
                                     # [선언 위치] 여기서 변수를 선언하고 크롤링 함수를 실행
                                     if row['플랫폼'] == '사람인':
                                         crawled_result = scrape_saramin_real_content(row['링크'], row['회사명'])
