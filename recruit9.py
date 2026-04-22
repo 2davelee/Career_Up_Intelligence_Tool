@@ -800,7 +800,7 @@ if search_submit or (keyword and keyword != st.session_state.get('last_kw', ''))
 placeholder = st.empty()
 if (st.session_state.raw_data is None or st.session_state.raw_data.empty) and not search_submit:
     with placeholder.container():
-        st.info("**사이드바**(**>>**)에서 **플랫폼 및 평점 세부설정** 후, 검색창에 키워드를 입력하고 [**엔진 가동**]\n\n💡 평점과 링크를 정밀 분석하느라 검색 시간이 조금 소요됩니다.")
+        st.info("**사이드바**(**>>**)에서 **플랫폼 및 평점** 세부설정 후, 검색창에 키워드를 입력하고 [**엔진 가동**]\n\n💡 평점과 링크를 정밀 분석하느라 검색 시간이 조금 소요됩니다.")
         # st.caption("Produced by Dave | CareerUp Intelligence Tool (1st Edition)")
 
 with placeholder.container():
