@@ -876,7 +876,7 @@ with placeholder.container():
                         # 개별 공고마다 고유한 key가 필요하므로 idx를 활용합니다.
                         with st.expander("✨ AI 합격 전략 리포트"):
                             # 1. 사용자가 버튼을 누르면
-                            if st.button("AI 합격 전략 도출 🚀", key=f"ai_btn_{idx}"):
+                            if st.button("AI 전략 도출 🚀", key=f"ai_btn_{idx}"):
                                 
                                 with st.spinner("🤖상세 공고 내용을 읽어오는 중입니다..."):
                                     # [선언 위치] 여기서 변수를 선언하고 크롤링 함수를 실행
