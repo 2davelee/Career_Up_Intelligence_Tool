@@ -5,7 +5,7 @@
 🛠️ Logic & Tech Stack
 Core Logic
 1. **Real-time Scraping**: 'Request'와 'BeautifulSoup'을 사용하여 사람인과 원티드의 최신 채용 공고 수집.
-2. **AI Strategy Agent**: 추출된 공고 원문을 **Llama-3.3-70b-versatile(Groq)** 모델에 전달하여 기업 및 직무 최적화된 '합격 필살기' 도출.
+2. **AI Strategy Agent**: 추출된 공고 원문을 **Llama-3.3-70b-versatile(Groq)** 모델에 전달하여 기업 및 직무에 최적화된 '합격 필살기' 도출.
 3. **Score Matching Engine**: 'Pandas'를 통한 사람인/원티드 공고와 해당 기업의 잡플래닛 평점 실시간 매칭. 
 4. **Data Intelligence**: 최소 평점 필터링 및 세션 기반 리스트 관리를 통한 데이터의 신뢰도와 가치 보존.
 5. **Report Generation**: 유저에 의해 최종 선별된 공고 리스트를 PDF 및 CSV로 다운 받는 '편리성'.
