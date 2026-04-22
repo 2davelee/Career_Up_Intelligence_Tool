@@ -611,6 +611,7 @@ st.markdown("""
     .rating-link:hover .animated-star { animation: starPulse 0.8s infinite; display: inline-block; }
     .no-rating { color: #ccc; font-size: 0.85em; }
     .delete-btn { color: white; background-color: #ff4b4b; border-radius: 5px; }
+    .font-family: "Segoe UI Emoji", "Apple Color Emoji", sans-serif;
 </style>
 """, unsafe_allow_html=True)
 
