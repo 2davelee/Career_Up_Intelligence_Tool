@@ -1007,7 +1007,7 @@ with placeholder.container():
                                         # 2. 유효성 검사 (핵심 필터!)
                                         # 텍스트가 없거나 너무 짧으면(예: 100자 미만) 이미지 공고일 확률이 높음
                                         if not crawled_result or len(crawled_result.strip()) < 100:
-                                            error_msg = "⚠️ 이 공고는 이미지로 구성되어 있어 내용을 읽을 수 없습니다. 상세 내용은 공고 링크를 직접 확인해 주세요!"
+                                            error_msg = "⚠️ 이 공고는 이미지로 구성되어 있습니다. 현재 이미지 분석 AI모듈을 통합 중이오니, 곧 이 공고도 자동으로 분석해 드릴게요. 상세 내용은 우선 링크를 확인해 주세요!"
                                             st.session_state[report_key] = error_msg
                                         else:
                                             # 3. 데이터가 충분할 때만 AI 호출
