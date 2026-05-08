@@ -7,5 +7,4 @@ pytz
 openai
 ipython
 st_copy_to_clipboard
-base64
 # google-generativeai
