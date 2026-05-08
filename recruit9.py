@@ -14,6 +14,7 @@ import pytz
 from openai import OpenAI
 from st_copy_to_clipboard import st_copy_to_clipboard
 import logging
+import base64
 logging.getLogger("fpdf.fonts").setLevel(logging.ERROR)
 
 
@@ -164,9 +165,9 @@ def create_strategy_pdf(report_content, company_name):
         depth = indent_size // 2
         
         # 1. 대섹션 (###) - 기호 완벽 제거 및 디자인 복구
-        if line.strip().startswith('###'):
+        if line.strip().startswith('##'):
             # ### 제거 및 앞뒤 공백 정리
-            clean_title = line.replace('###', '').replace('**', '').strip()
+            clean_title = line.replace('###', '').replace('##', '').replace('**', '').strip()
             
             pdf.ln(5)
             pdf.set_fill_color(240, 248, 245)
@@ -313,10 +314,12 @@ def extract_score_from_text(text):
     try: return last_valid_score
     except: return 0.0
 
+
+
 def get_jobplanet_info(company):
     search_name = clean_name(company)
-    # [수정] 큰따옴표 제거! 네이버가 더 많은 결과를 주도록 유도함.
-    query = quote(f"{search_name} 잡플래닛 평점") 
+    # 검색어를 좀 더 명확하게 보정
+    query = quote(f"{search_name} 잡플래닛 기업정보 리뷰평점") 
     url = f"https://search.naver.com/search.naver?query={query}"
     
     headers = {
@@ -324,33 +327,47 @@ def get_jobplanet_info(company):
         'Referer': 'https://www.naver.com/'
     }
     
-    score, link = 0.0, f"https://www.jobplanet.co.kr/search?query={quote(search_name)}"
+    # 기본값 설정
+    score = 0.0
+    link = f"https://www.jobplanet.co.kr/search?query={quote(search_name)}"
     
     try:
-        time.sleep(random.uniform(1.0, 2.0)) # 차단 안 당할 정도로만.
+        time.sleep(random.uniform(1.2, 2.5)) # 탐지 방지를 위해 약간 더 여유 있게
         res = requests.get(url, headers=headers, timeout=5)
+        res.raise_for_status()
         soup = BeautifulSoup(res.text, 'html.parser')
         
-        # [핵심 로직] 특정 클래스(.bx)에 의존하지 않고 잡플래닛 링크가 포함된 모든 요소 탐색
+        # [핵심 수정] 공식 기업 페이지 링크만 타겟팅
+        # 블로그나 지식in 글은 보통 jobplanet.co.kr/companies 경로를 직접 가지지 않음.
         anchors = soup.find_all('a', href=re.compile(r'jobplanet\.co\.kr/companies'))
         
         for a in anchors:
-            # 해당 링크가 포함된 가장 가까운 부모 컨테이너 추출
-            parent = a.find_parent('li') or a.find_parent('div')
-            if parent:
-                parent_text = parent.get_text(separator=' ', strip=True)
-                score = extract_score_from_text(parent_text)
-                if score > 0:
-                    link = a['href']
-                    return score, link # 찾았으면 즉시 반환
-
-        # [Fallback] 만약 위에서 못 찾았다면 페이지 전체 텍스트에서 '잡플래닛' 주변 훑기
-        full_text = soup.get_text(separator=' ', strip=True)
-        score = extract_score_from_text(full_text)
+            actual_link = a['href']
+            
+            if "/companies/" in actual_link:
+                parent = a.find_parent('li') or a.find_parent('div')
+                if parent:
+                    parent_text = parent.get_text(separator=' ', strip=True)
+                    
+                    clean_search = search_name.replace("(주)", "").replace(" ", "")
+                    clean_found = parent_text.replace("(주)", "").replace(" ", "")
+                    
+                    if clean_search in clean_found or clean_found in clean_search:
+                        temp_score = extract_score_from_text(parent_text)
+                        if temp_score > 0:
+                            return temp_score, actual_link
+                    else:
+                        # 여기가 실행된다는 건 진짜로 엉뚱한 회사(이름이 전혀 다른)가 검색된 경우.
+                        print(f"⚠️ 매칭 불일치 건너뜀: 검색어({search_name}) != 결과({parent_text[:20]}...)")
+                        continue
         
-        return score, link
-    except:
+        # [중요] 모험적인 전체 텍스트 훑기(Fallback)는 삭제
         return 0.0, link
+        
+    except Exception as e:
+        # print(f"❌ 잡플래닛 매칭 에러 ({company}): {e}")
+        return 0.0, link
+
 
 # --- 2. 채용 데이터 수집 함수 ---
 platform_map_to_id = {
@@ -379,20 +396,78 @@ def get_saramin_jobs(keyword, limit=20):
         return pd.DataFrame(job_list)
     except: return pd.DataFrame()
 
+# @st.cache_data(ttl=600, show_spinner=False)
+# def get_wanted_jobs(keyword, limit=20):
+#     """
+#     원티드 최신 API(v4/search)와 잡플래닛 평점 엔진을 결합한 통합 함수
+#     """
+#     if not keyword:
+#         return pd.DataFrame()
+
+#     encoded_keyword = quote(keyword)
+    
+#     # 1. 원티드 최신 검색 엔드포인트 (v4/search)
+#     url = f"https://www.wanted.co.kr/api/v4/search?job_sort=job.latest_order&locations=all&years=-1&query={encoded_keyword}&country=kr"
+    
+#     # 봇 차단 우회를 위한 정교한 헤더
+#     headers = {
+#         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36',
+#         'Accept': 'application/json, text/plain, */*',
+#         'Referer': f'https://www.wanted.co.kr/search?query={encoded_keyword}',
+#         'Origin': 'https://www.wanted.co.kr'
+#     }
+    
+#     try:
+#         # 원티드 데이터 요청
+#         res = requests.get(url, headers=headers, timeout=10)
+#         res.raise_for_status() 
+        
+#         data = res.json()
+#         # v4/search API는 data -> jobs 구조를 가집니다.
+#         jobs = data.get('data', {}).get('jobs', [])
+        
+#         if not jobs:
+#             return pd.DataFrame()
+            
+#         job_list = []
+#         for item in jobs[:limit]:
+#             try:
+#                 corp = item.get('company', {}).get('name', '미상')
+                
+#                 # --- [잡플래닛 연동 섹션] ---
+#                 # 기존에 정의하신 get_jobplanet_info 함수를 호출합니다.
+#                 score, jp_link = get_jobplanet_info(corp)
+#                 # --------------------------
+                
+#                 job_list.append({
+#                     '플랫폼': '원티드',
+#                     '회사명': corp,
+#                     '평점': score,
+#                     '잡플래닛링크': jp_link,
+#                     '공고제목': item.get('position', '제목 없음'),
+#                     '지원자격': '상세 요건은 공고 참조',
+#                     '링크': f"https://www.wanted.co.kr/wd/{item.get('id')}"
+#                 })
+#             except Exception: 
+#                 continue
+            
+#         return pd.DataFrame(job_list)
+        
+#     except Exception as e:
+#         # 에러 발생 시 빈 데이터프레임을 반환하여 메인 루프가 끊기지 않게 방어
+#         print(f"⚠️ 원티드 통합 엔진 에러: {e}")
+#         return pd.DataFrame()
+
+
 @st.cache_data(ttl=600, show_spinner=False)
 def get_wanted_jobs(keyword, limit=20):
     """
-    원티드 최신 API(v4/search)와 잡플래닛 평점 엔진을 결합한 통합 함수
+    원티드 API를 통해 수집한 지역/경력/상세요건을 '지원자격' 컬럼 하나로 통합하여 반환
     """
     if not keyword:
         return pd.DataFrame()
 
     encoded_keyword = quote(keyword)
-    
-    # 1. 원티드 최신 검색 엔드포인트 (v4/search)
-    url = f"https://www.wanted.co.kr/api/v4/search?job_sort=job.latest_order&locations=all&years=-1&query={encoded_keyword}&country=kr"
-    
-    # 봇 차단 우회를 위한 정교한 헤더
     headers = {
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36',
         'Accept': 'application/json, text/plain, */*',
@@ -400,14 +475,12 @@ def get_wanted_jobs(keyword, limit=20):
         'Origin': 'https://www.wanted.co.kr'
     }
     
+    search_url = f"https://www.wanted.co.kr/api/v4/search?job_sort=job.latest_order&locations=all&years=-1&query={encoded_keyword}&country=kr"
+    
     try:
-        # 원티드 데이터 요청
-        res = requests.get(url, headers=headers, timeout=10)
+        res = requests.get(search_url, headers=headers, timeout=10)
         res.raise_for_status() 
-        
-        data = res.json()
-        # v4/search API는 data -> jobs 구조를 가집니다.
-        jobs = data.get('data', {}).get('jobs', [])
+        jobs = res.json().get('data', {}).get('jobs', [])
         
         if not jobs:
             return pd.DataFrame()
@@ -415,21 +488,69 @@ def get_wanted_jobs(keyword, limit=20):
         job_list = []
         for item in jobs[:limit]:
             try:
+                job_id = item.get('id')
                 corp = item.get('company', {}).get('name', '미상')
                 
-                # --- [잡플래닛 연동 섹션] ---
-                # 기존에 정의하신 get_jobplanet_info 함수를 호출합니다.
+                # 상세 정보 API 호출
+                detail_api_url = f"https://www.wanted.co.kr/api/v4/jobs/{job_id}"
+                det_res = requests.get(detail_api_url, headers=headers, timeout=5)
+                det_data = det_res.json().get('job', {})
+
+                # --- [수정 포인트 1: 상세 지역(구 단위) 추출] ---
+                address_info = det_data.get('address', {})
+                city = address_info.get('location', '')      # 서울
+                district = address_info.get('district', '')  # 강남구
+                full_loc = f"{city} {district}".strip()
+                
+                # --- [개선된 자격요건 추출 로직] ---
+                raw_req = det_data.get('detail', {}).get('requirements', '')
+                lines = [line.strip() for line in raw_req.split('\n') if line.strip()]
+                
+                target_info = ""
+                if lines:
+                    # 1. '경력'이나 '년'이 포함된 줄을 먼저 찾음 (핵심 정보일 확률 높음)
+                    career_lines = [l for l in lines if any(word in l for word in ['경력', '년', '이상', '보유'])]
+                    
+                    if career_lines:
+                        # 경력 관련 줄이 있다면 그 중 첫 번째 선택
+                        target_info = career_lines[0]
+                    else:
+                        # 없다면 어쩔 수 없이 실제 첫 줄 선택
+                        target_info = lines[0]
+
+                # "다음 중 하나 이상" 같은 불필요한 문구 필터링 (간단한 예시)
+                junk_words = ['다음 중', '하나 이상', '지원 가능', '자격 요건']
+                if any(junk in target_info for junk in junk_words) and len(lines) > 1:
+                    # 만약 첫 줄이 쓰레기값인데 다음 줄이 있다면 다음 줄로 넘김
+                    target_info = lines[1]
+
+                # 결과 조합 (불필요한 불렛 기호 '•' 제거 포함)
+                target_info = target_info.replace('•', '').strip()
+                condition = f"{full_loc} • {target_info}"
+                # --------------------------------------------
+                # --------------------------------------------
+
+                # # 개별 항목 추출
+                # loc = det_data.get('address', {}).get('location', '')
+                # exp = det_data.get('experience', '')
+                # req = det_data.get('detail', {}).get('requirements', '')
+                
+                # # --- [핵심: 항목 통합] ---
+                # # 지역 경력 자격요건을 띄어쓰기로 합치고, 앞뒤 공백 제거
+                # condition = f"{loc} {exp} {req}".strip()
+                # # -----------------------
+
+                # 잡플래닛 정보 가져오기
                 score, jp_link = get_jobplanet_info(corp)
-                # --------------------------
                 
                 job_list.append({
                     '플랫폼': '원티드',
                     '회사명': corp,
                     '평점': score,
                     '잡플래닛링크': jp_link,
-                    '공고제목': item.get('position', '제목 없음'),
-                    '지원자격': '상세 요건은 공고 참조',
-                    '링크': f"https://www.wanted.co.kr/wd/{item.get('id')}"
+                    '공고제목': det_data.get('position', item.get('position', '제목 없음')),
+                    '지원자격': condition if condition else '상세 요건은 링크 참조',
+                    '링크': f"https://www.wanted.co.kr/wd/{job_id}"
                 })
             except Exception: 
                 continue
@@ -437,74 +558,11 @@ def get_wanted_jobs(keyword, limit=20):
         return pd.DataFrame(job_list)
         
     except Exception as e:
-        # 에러 발생 시 빈 데이터프레임을 반환하여 메인 루프가 끊기지 않게 방어
         print(f"⚠️ 원티드 통합 엔진 에러: {e}")
         return pd.DataFrame()
 
-# @st.cache_data(ttl=600, show_spinner=False) # 테스트를 위해 일단 1분(60초)으로 줄이세요
-# def get_wanted_jobs(keyword, limit=20):
-#     if not keyword:
-#         return pd.DataFrame()
-    
-#     # 1. job_ids를 제거하여 모든 직군 검색 가능하게 변경
-#     # 2. keyword를 URL에 맞게 인코딩 (한글 깨짐 방지)
-#     encoded_keyword = quote(keyword)
-#     url = f"https://www.wanted.co.kr/api/v4/jobs?country=kr&job_sort=job.latest_order&locations=all&years=-1&keyword={encoded_keyword}&limit={limit}"
-    
-#     headers = {
-#         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-#         'Referer': f'https://www.wanted.co.kr/search?query={encoded_keyword}'
-#     }
 
-#     try:
-#         res = requests.get(url, headers=headers, timeout=10)
-#         if res.status_code == 200:
-#             data = res.json()
-#             jobs = data.get('data', [])
-            
-#             if not jobs:
-#                 return pd.DataFrame()
-                
-#             job_list = []
-#             for job in jobs[:limit]:
-#                 corp = job['company']['name']
-#                 # 평점 수집 엔진 (기존 로직 유지)
-#                 score, jp_link = get_jobplanet_info(corp)
-                
-#                 job_list.append({
-#                     '플랫폼': '원티드',
-#                     '회사명': corp,
-#                     '평점': score,
-#                     '잡플래닛링크': jp_link,
-#                     '공고제목': job['position'],
-#                     '지원자격': '상세내용은 원티드 공고 참조',
-#                     '링크': f"https://www.wanted.co.kr/wd/{job['id']}"
-#                 })
-#             return pd.DataFrame(job_list)
-#         return pd.DataFrame()
-#     except Exception as e:
-#         # 에러 발생 시 빈 데이터프레임 반환하여 전체 로직 유지
-#         return pd.DataFrame()
-    
-# @st.cache_data(ttl=600, show_spinner=False)
-# def get_wanted_jobs(keyword, limit=20):
-#     st.write(f"DEBUG: 현재 원티드 검색어 -> {keyword}")
-#     encoded_keyword = quote(keyword)
-#     url = f"https://www.wanted.co.kr/api/v4/jobs?country=kr&job_sort=job.latest_order&locations=all&years=-1&keyword={encoded_keyword}"
-#     try:
-#         res = requests.get(url, headers={'User-Agent': 'Mozilla/5.0', 'Referer': f'https://www.wanted.co.kr/search?query={encoded_keyword}'}, timeout=10)
-#         if res.status_code == 200:
-#             jobs = res.json().get('data', [])
-#             job_list = []
-#             for job in jobs[:limit]:
-#                 corp = job['company']['name']
-#                 score, jp_link = get_jobplanet_info(corp)
-#                 job_list.append({'플랫폼': '원티드', '회사명': corp, '평점': score, '잡플래닛링크': jp_link, '공고제목': job['position'], '지원자격': '상세공고 참조', '링크': f"https://www.wanted.co.kr/wd/{job['id']}"})
-#             return pd.DataFrame(job_list)
-#         return pd.DataFrame()
-#     except: return pd.DataFrame()
-
-def scrape_saramin_real_content(url, company_name):
+def scrape_saramin_real_content(url, company_name, max_imgs=5):
     # 1. URL에서 공고 고유 번호(rec_idx) 추출
     match = re.search(r"rec_idx=(\d+)", url)
     if not match:
@@ -533,6 +591,50 @@ def scrape_saramin_real_content(url, company_name):
                           soup.select_one(".jv_detail") or \
                           soup # 정 안되면 전체
 
+        # --- [추가] 이미지 URL 추출 로직 ---
+        # --- [수정] 이미지 URL 추출 로직 ---
+        image_urls = []
+        imgs = content_section.find_all('img')
+        
+        # 제외하고 싶은 키워드 (아이콘, 버튼 등 공고와 무관한 것)
+        exclude_keywords = ['icon', 'logo', 'btn', 'guide', 'marker', 'star']
+        # 허용할 이미지 확장자
+        valid_extensions = ['.jpg', '.jpeg', '.png', '.webp']
+
+        for img in imgs:
+            if len(image_urls) >= max_imgs: # 1. 개수 제한 도달 시 중단
+                break
+
+            width = img.get('width')
+            if width and int(width) < 200: # 200px 미만은 로고나 아이콘일 확률 높음
+                continue
+
+            # src 또는 data-src(지연 로딩용)에서 주소를 가져옴
+            src = img.get('src') or img.get('data-src') or img.get('data-original')
+            
+            if src:
+                # 1. 절대 경로 보정
+                if src.startswith('//'):
+                    src = 'https:' + src
+                elif src.startswith('/'):
+                    src = 'https://www.saramin.co.kr' + src
+                
+                # 2. 필터링 로직 (하이브리드 방식)
+                src_lower = src.lower()
+                
+                # 조건 A: 사람인 공식 서버 이미지인가? (우선순위 높음)
+                is_saramin_img = 'recruit' in src_lower or 'pds' in src_lower
+                
+                # 조건 B: 자사 링크인가? (확장자가 이미지이고, 제외 키워드가 없는 경우)
+                is_external_img = any(ext in src_lower for ext in valid_extensions) and \
+                                  not any(ex in src_lower for ex in exclude_keywords)
+
+                
+                if is_saramin_img or is_external_img:
+                    # 중복 제거 후 추가
+                    if src not in image_urls:
+                        image_urls.append(src)
+
         # 불필요한 UI 요소(닫기 버튼, 가이드 문구 등) 제거
         for s in content_section(['script', 'style', 'button', '.guide_area']):
             s.decompose()
@@ -550,7 +652,7 @@ def scrape_saramin_real_content(url, company_name):
             if line and not any(kw in line for kw in garbage_keywords):
                 clean_lines.append(line)
         
-        return "\n".join(clean_lines)
+        return "\n".join(clean_lines), image_urls
 
     except Exception as e:
         return f"🚨 에러 발생: {e}"
@@ -647,7 +749,17 @@ client = OpenAI(
     api_key=groq_key,
     base_url="https://api.groq.com/openai/v1"
 )
-def analyze_with_llama(crawled_result):
+
+    
+def analyze_with_llama(crawled_text, image_urls=None):
+    # 이미지 인코딩 함수 (기존과 동일)
+    def encode_image(url):
+        headers = {"User-Agent": "Mozilla/5.0"}
+        resp = requests.get(url, headers=headers)
+        return base64.b64encode(resp.content).decode('utf-8')
+
+    # 1. 지시사항과 데이터를 하나로 합칩니다. (유저님 스타일)
+    # crawled_text가 비어있어도 f-string 구조 덕분에 프롬프트는 정상 작동합니다.
     analysis_prompt = f"""
     당신은 전략 컨설팅 펌 출신의 '수석 리쿠르팅 어드바이저'입니다. 
     제공된 [채용 공고]를 분석하여 객관적이고 논리적인 '지원 전략 보고서'를 작성하세요.
@@ -675,27 +787,52 @@ def analyze_with_llama(crawled_result):
     ***"자연스러운 한국어 구어체(1번 항목의 기초정보에 한해서만 문장형이 아닌 깔끔히 표시)를 사용할 것"***
     ***"해당 업종만의 배경지식(업계 컨텍스트)을 활용해서 설명할 것."***
     ***"신입, 중간관리자, 시니어 등 각 자격요건(연차)에 맞게 강조점을 조정하여 맞춤형으로 제시할 것."***
+    ***"이미지 파일을 분석 할 때에도 위의 규칙과 항목을 모두 준수하여 분석할 것 
     [채용 공고 데이터]
-    {crawled_result}
+    {crawled_text}
     """
 
-    try: response = client.chat.completions.create(
-    # model="llama-3.3-70b-versatile", 
-    model="meta-llama/llama-4-scout-17b-16e-instruct", 
+    # 2. 메시지 컨텐츠 리스트 구성 (가장 중요)
+    # 무조건 첫 번째 요소는 프롬프트와 텍스트 데이터가 합쳐진 'text' 타입이어야 합니다.
+    user_content = [
+        {
+            "type": "text", 
+            "text": analysis_prompt
+        }
+    ]
+    
+    # 3. 이미지 정보가 있으면 리스트 뒤에 추가합니다.
+    if image_urls:
+        for img_url in image_urls:
+            try:
+                base64_img = encode_image(img_url)
+                user_content.append({
+                    "type": "image_url",
+                    "image_url": {"url": f"data:image/jpeg;base64,{base64_img}"}
+                })
+            except:
+                continue
 
-    messages=[
-        {"role": "system", "content": analysis_prompt},
-        {"role": "user", "content": f"다음 공고를 분석해줘: {crawled_result}"}
-    ],
-    temperature=0.5 # 일관된 분석을 위해 약간 낮게 설정
-    )
+    # 텍스트와 이미지 둘 다 없을 경우 예외 처리
+    if not crawled_text.strip() and not image_urls:
+        return "⚠️ 분석할 공고 내용(텍스트 또는 이미지)이 부족합니다."
+
+    try:
+        # 모델 선택: 이미지가 있으면 무조건 Vision 모델 사용
+        target_model = "meta-llama/llama-4-scout-17b-16e-instruct"
+        
+        response = client.chat.completions.create(
+            model=target_model,
+            messages=[
+                # 시스템 역할보다 사용자 역할에 지시사항을 몰아넣는 것이 
+                # 멀티모달(이미지 분석) 모델에서는 지시 준수율이 더 높습니다.
+                {"role": "user", "content": user_content}
+            ],
+            temperature=0.5
+        )
+        return response.choices[0].message.content
     except Exception as e:
-        if "rate_limit_exceeded" in str(e).lower():
-            st.warning("⚠️ AI 분석 요청이 너무 많습니다. 1분 후 다시 시도해주세요! (무료 API 할당량 제한)")
-        else:
-            st.error("AI 전략 도출 중 오류가 발생했습니다.")
-
-    return response.choices[0].message.content
+        return f"AI 분석 중 오류 발생: {e}"
 
 # --- 2. Streamlit UI 및 상태 관리 (상태 유지용) ---
 
@@ -991,27 +1128,35 @@ with placeholder.container():
                         # --- [핵심] AI 전략 리포트 Expander ---
                         # 개별 공고마다 고유한 key가 필요하므로 idx를 활용
                         # 1. 각 공고마다 고유한 저장 키 생성 (중복 방지)
-                        report_key = f"ai_report_{idx}"
+                        report_key = f"ai_report_{unique_key}"
                         with st.expander("✨ AI 합격 전략 리포트"):
                             # [조건] 버튼을 눌렀거나, 이미 이전에 분석해서 메모리(session_state)에 결과가 있는 경우
-                            if st.button("AI 전략 도출 🚀", key=f"ai_btn_{idx}") or report_key in st.session_state:
+                            if st.button("AI 전략 도출 🚀", key=f"ai_btn_{unique_key}") or report_key in st.session_state:
                                 
                                 # 만약 메모리(session_state)에 데이터가 없다면 -> 처음 버튼을 누른 상태
                                 if report_key not in st.session_state:
                                     with st.spinner("🔎 상세 공고 내용을 읽고 전략을 짜는 중입니다..."):
                                         # 크롤링 로직 시작
                                         if row['플랫폼'] == '사람인':
-                                            crawled_result = scrape_saramin_real_content(row['링크'], row['회사명'])
+                                            crawled_text, img_urls = scrape_saramin_real_content(row['링크'], row['회사명'])
                                         elif row['플랫폼'] == '원티드':
-                                            crawled_result = scrape_wanted_full_content(row['링크'])
+                                            crawled_text = scrape_wanted_full_content(row['링크'])
+                                            img_urls = []
                                         # 2. 유효성 검사 (핵심 필터!)
                                         # 텍스트가 없거나 너무 짧으면(예: 100자 미만) 이미지 공고일 확률이 높음
-                                        if not crawled_result or len(crawled_result.strip()) < 100:
-                                            error_msg = "⚠️ 이 공고는 이미지로 구성되어 있습니다. 현재 이미지 분석 AI모듈을 통합 중이오니, 곧 이 공고도 자동으로 분석해 드릴게요. 상세 내용은 우선 링크를 확인해 주세요!"
-                                            st.session_state[report_key] = error_msg
+                                        # if not crawled_result or len(crawled_result.strip()) < 100:
+                                        #     error_msg = "⚠️ 이 공고는 이미지로 구성되어 있습니다. 현재 이미지 분석 AI모듈을 통합 중이오니, 곧 이 공고도 자동으로 분석해 드릴게요. 상세 내용은 우선 링크를 확인해 주세요!"
+                                        #     st.session_state[report_key] = error_msg
+
+                                        # 텍스트도 부족하고 이미지도 없을 때만 에러 메시지 출력
+                                        text_too_short = not crawled_text or len(crawled_text.strip()) < 100
+                                        no_images = not img_urls
+                                        if text_too_short and no_images:
+                                            error_msg = "⚠️ 상세 내용을 가져올 수 없습니다. (이미지 공고 또는 접근 제한)"
+                                            st.session_state[report_key] = error_msg    
                                         else:
                                             # 3. 데이터가 충분할 때만 AI 호출
-                                            report_content = analyze_with_llama(crawled_result)
+                                            report_content = analyze_with_llama(crawled_text, img_urls)
                                             st.session_state[report_key] = report_content.strip()
 
                                 # 이제 메모리에 저장된 데이터를 가져옴 (AI 서버 안 돌림)
@@ -1031,7 +1176,7 @@ with placeholder.container():
                                         data=bytes(pdf_data),
                                         file_name=f"AI_Strategy_{row['회사명']}_{now}.pdf",
                                         mime="application/pdf",
-                                        key=f"dl_btn_pdf{idx}",
+                                        key=f"dl_btn_pdf{unique_key}",
                                         use_container_width=True
                                     )
                                     st.download_button(
@@ -1039,7 +1184,7 @@ with placeholder.container():
                                         data=current_report.encode('utf-8-sig'), # 아이폰/윈도우 한글 깨짐 방지
                                         file_name=f"AI_Strategy_{row['회사명']}_{now}.txt",
                                         mime="text/plain",
-                                        key=f"dl_btn_txt{idx}",
+                                        key=f"dl_btn_txt{unique_key}",
                                         use_container_width=True # 모바일에서도 시원하게 꽉 찬 버튼
                                     )
 
