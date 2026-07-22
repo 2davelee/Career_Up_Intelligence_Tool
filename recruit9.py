@@ -12,6 +12,7 @@ import os
 import datetime
 import pytz
 from openai import OpenAI
+from PIL import Image
 from st_copy_to_clipboard import st_copy_to_clipboard
 import logging
 import base64
@@ -753,10 +754,24 @@ client = OpenAI(
     
 def analyze_with_llama(crawled_text, image_urls=None):
     # 이미지 인코딩 함수 (기존과 동일)
-    def encode_image(url):
-        headers = {"User-Agent": "Mozilla/5.0"}
-        resp = requests.get(url, headers=headers)
-        return base64.b64encode(resp.content).decode('utf-8')
+    def get_valid_image_base64(url):
+        try:
+            headers = {"User-Agent": "Mozilla/5.0"}
+            resp = requests.get(url, headers=headers, timeout=5)
+            if resp.status_code != 200:
+                return None
+
+            # PIL로 이미지 로드하여 해상도 체크
+            img = Image.open(io.BytesIO(resp.content))
+            width, height = img.size
+
+            # 최소 50x50 픽셀 이상인 이미지선만 통과 (1x1 아이콘, 트래커 제거)
+            if width < 50 or height < 50:
+                return None
+
+            return base64.b64encode(resp.content).decode("utf-8")
+        except Exception:
+            return None
 
     # 1. 지시사항과 데이터를 하나로 합칩니다. (유저님 스타일)
     # crawled_text가 비어있어도 f-string 구조 덕분에 프롬프트는 정상 작동합니다.
@@ -780,7 +795,9 @@ def analyze_with_llama(crawled_text, image_urls=None):
     - **면접 예상 답변:** 위에서 뽑은 질문에 대해 구체적인 모범답안을 문장형으로 답변하세요.
 
     ---
-    [출력 규칙] 표 금지, 불렛포인트 사용, 한자(중국의 문자; 번체자, 간체자),일본어(일본의 문자; 히라가나, 카타카나) 일체 사용(표기)금지.
+    [출력 규칙] 표 금지, 불렛포인트 사용, 기본적으로 영어가아닌 한국어(한글)사용, 일부 영어 단어 정도는 허용함, 한자(중국의 문자; 번체자, 간체자),일본어(일본의 문자; 히라가나, 카타카나) 일체 사용(표기)금지.
+    ***[최우선 규칙] 추론 과정()은 최대 2~3문장 이내로 극도로 짧게 끝내세요. 생각에 토큰을 낭비하지 말고 곧바로 본문 작성에 모든 토큰을 집중할 것.***
+    ***"내부 사고 과정이나 추론 단계, <think> 태그를 절대 출력에 포함하지 마십시오. 오직 요청된 보고서 내용만 바로 출력할 것."***
     ***"답변 시 공고문의 텍스트를 그대로 복사하지 말고, 수석 컨설턴트의 시각에서 '비즈니스 언어'로 재해석(Paraphrasing)해서 작성할 것. 특히 '필살기 가이드'에는 지원자가 면접관을 압도할 수 있는 구체적인 기술적 키워드(예: RAG 고도화, MLOps 등)를 추론해서 포함시켜라."***
     ***"단순 요약하지 말고, 공고에 없는 내용을 너의 지식을 바탕으로 창의적으로 추론해서 덧붙일 것."***
     ***"시간이 더 걸리더라도 독하게, 더 깊게 분석할 것."***
@@ -804,22 +821,23 @@ def analyze_with_llama(crawled_text, image_urls=None):
     # 3. 이미지 정보가 있으면 리스트 뒤에 추가합니다.
     if image_urls:
         for img_url in image_urls:
-            try:
-                base64_img = encode_image(img_url)
-                user_content.append({
-                    "type": "image_url",
-                    "image_url": {"url": f"data:image/jpeg;base64,{base64_img}"}
-                })
-            except:
-                continue
+            base64_img = get_valid_image_base64(img_url)
+            if base64_img:
+                user_content.append(
+                    {
+                        "type": "image_url",
+                        "image_url": {
+                            "url": f"data:image/jpeg;base64,{base64_img}"
+                        },
+                    }
+                )
 
-    # 텍스트와 이미지 둘 다 없을 경우 예외 처리
-    if not crawled_text.strip() and not image_urls:
-        return "⚠️ 분석할 공고 내용(텍스트 또는 이미지)이 부족합니다."
+    if not crawled_text.strip() and len(user_content) == 1:
+        return "⚠️ 분석할 공고 내용(텍스트 또는 유효한 이미지)이 부족합니다."
 
     try:
         # 모델 선택: 이미지가 있으면 무조건 Vision 모델 사용
-        target_model = "meta-llama/llama-4-scout-17b-16e-instruct"
+        target_model = "llama-3.3-70b-versatile"
         
         response = client.chat.completions.create(
             model=target_model,
@@ -828,9 +846,26 @@ def analyze_with_llama(crawled_text, image_urls=None):
                 # 멀티모달(이미지 분석) 모델에서는 지시 준수율이 더 높습니다.
                 {"role": "user", "content": user_content}
             ],
-            temperature=0.5
+            temperature=0.5,
+            max_tokens=8000
         )
-        return response.choices[0].message.content
+        raw_text = response.choices[0].message.content
+        # --- [개선된 안전 정제 로직] ---
+        if "</think>" in raw_text:
+            # 닫히는 태그가 있으면 태그 이후의 진짜 결과물만 추출
+            clean_text = raw_text.split("</think>")[-1].strip()
+        else:
+            # 닫히는 태그가 없으면 <think> 단어만 제거하고 텍스트 전체 살리기
+            clean_text = re.sub(
+                r"<think>", "", raw_text, flags=re.IGNORECASE
+            ).strip()
+
+        # 만약 정제 후에도 문자열이 비어있다면 원문 반환 (초록 박스 현상 완전 방지)
+        if not clean_text:
+            clean_text = raw_text.strip()
+
+        return clean_text
+
     except Exception as e:
         return f"AI 분석 중 오류 발생: {e}"
 
